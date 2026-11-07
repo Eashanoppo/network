@@ -2,50 +2,78 @@ import React from 'react';
 import { ScheduleProvider } from './context/ScheduleContext';
 import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
-import { ProjectOverview } from './components/modules/Module00Intro/ProjectOverview';
-import { ScheduleProcessExplorer } from './components/modules/Module01Process/ScheduleProcessExplorer';
-import { DependencyRelationshipLab } from './components/modules/Module02Dependencies/DependencyRelationshipLab';
-import { NetworkDiagramExplorer } from './components/modules/Module03NetworkDiagram/NetworkDiagramExplorer';
-import { CpmCalculationStudio } from './components/modules/Module04CriticalPath/CpmCalculationStudio';
-import { GanttChartStudio } from './components/modules/Module05GanttChart/GanttChartStudio';
-import { PertEstimator } from './components/modules/Module06Pert/PertEstimator';
-import { KnowledgeCheckQuiz } from './components/modules/Module07Quiz/KnowledgeCheckQuiz';
+import { PresenterStageBar } from './components/common/PresenterStageBar';
+import { ProjectOverview } from './components/modules/Chapter01Overview/ProjectOverview';
+import { ScheduleManagementBasics } from './components/modules/Chapter02ScheduleManagement/ScheduleManagementBasics';
+import { ScheduleProcessExplorer } from './components/modules/Chapter03Processes/ScheduleProcessExplorer';
+import { DependencyRelationshipLab } from './components/modules/Chapter04Dependencies/DependencyRelationshipLab';
+import { NetworkDiagramExplorer } from './components/modules/Chapter05NetworkDiagram/NetworkDiagramExplorer';
+import { CpmCalculationStudio } from './components/modules/Chapter06CriticalPath/CpmCalculationStudio';
+import { GanttChartStudio } from './components/modules/Chapter07GanttChart/GanttChartStudio';
+import { SimulationWorkspace } from './components/modules/Chapter06CriticalPath/SimulationWorkspace';
+import { PertEstimator } from './components/modules/Chapter08Pert/PertEstimator';
+import { KnowledgeCheckQuiz } from './components/modules/Chapter09Quiz/KnowledgeCheckQuiz';
+import { ScheduleFaq } from './components/modules/FaqAndCta/ScheduleFaq';
+import { FinalCta } from './components/modules/FaqAndCta/FinalCta';
 
 export const App: React.FC = () => {
   return (
     <ScheduleProvider>
-      <div className="min-h-screen bg-canvas text-ink-primary flex flex-col font-sans selection:bg-brand-light selection:text-brand">
-        {/* Sticky Header with Navigation, Progress, and Live Status */}
+      <div className="min-h-screen bg-canvas text-ink-primary flex flex-col font-sans selection:bg-brand-light selection:text-ink-primary">
+        {/* Accessible Keyboard Skip Link */}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-4 focus:py-2 focus:bg-ink-primary focus:text-white focus:rounded-md focus:shadow-elevated text-xs font-semibold"
+        >
+          Skip to main content
+        </a>
+
+        {/* Minimalist Editorial Navigation Bar */}
         <Header />
 
-        {/* Continuous Educational Scroll Experience */}
-        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Section 0: Project Context & Shared Scenario Overview */}
+        {/* Full-Width Alternating Editorial Bands */}
+        <main id="main-content" className="flex-1 w-full">
+          {/* Section A & B: Hero & Platform Capabilities (White Band) */}
           <ProjectOverview />
 
-          {/* Module 01 — Member 1: Schedule Management & 6 Processes */}
+          {/* Section C (Part 1): Project Schedule Management (Warm Neutral Band) */}
+          <ScheduleManagementBasics />
+
+          {/* Section C (Part 2): The Six PMBOK Schedule Processes (White Band) */}
           <ScheduleProcessExplorer />
 
-          {/* Module 02 — Member 2: Activity Dependencies & Relationships */}
+          {/* Section D: Activity Dependencies & Precedence Logic (Warm Neutral Band) */}
           <DependencyRelationshipLab />
 
-          {/* Module 03 — Member 3: Network Diagram (AON) */}
+          {/* Section E: Network Diagram - Activity-on-Node (White Band) */}
           <NetworkDiagramExplorer />
 
-          {/* Module 04 — Member 4: Critical Path Method (CPM) & Calculation Studio */}
+          {/* Section F: Critical Path Method (CPM) & Slack Studio (Warm Neutral Band) */}
           <CpmCalculationStudio />
 
-          {/* Module 05 — Member 5: Gantt Chart Studio & Comparative Analysis */}
+          {/* Section G: Gantt Chart Studio & Comparative Synthesis (White Band) */}
           <GanttChartStudio />
 
-          {/* Module 06 — Supporting Academic Topic: PERT Estimator */}
+          {/* Section H: Real-Time Simulation Workspace (Warm Neutral Band) */}
+          <SimulationWorkspace />
+
+          {/* Section I: PERT Three-Point Estimation Studio (White Band) */}
           <PertEstimator />
 
-          {/* Module 07 — Interactive Knowledge Check Quiz */}
+          {/* Section J: Interactive Knowledge Check & Practical Challenge (Warm Neutral Band) */}
           <KnowledgeCheckQuiz />
+
+          {/* Section K: Minimalist FAQ Accordion (White Band) */}
+          <ScheduleFaq />
+
+          {/* Section L: Full-Width Final CTA (Warm Neutral Band) */}
+          <FinalCta />
         </main>
 
-        {/* Academic References & Footer */}
+        {/* Floating Presenter Stage Bar (Active in Presenter Mode) */}
+        <PresenterStageBar />
+
+        {/* Section M: Refined Footer (White Band) */}
         <Footer />
       </div>
     </ScheduleProvider>
@@ -53,4 +81,3 @@ export const App: React.FC = () => {
 };
 
 export default App;
-

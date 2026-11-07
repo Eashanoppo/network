@@ -1,4 +1,12 @@
-import { Activity, CalculatedActivity, ProjectPath, ScheduleCalculationResult, DelayImpactAnalysis } from '../types/scheduling';
+import {
+  Activity,
+  CalculatedActivity,
+  ProjectPath,
+  ScheduleCalculationResult,
+  DelayImpactAnalysis,
+  ValidationResult,
+  ValidationError,
+} from '../types/scheduling';
 
 export const BASELINE_ACTIVITIES: Activity[] = [
   {
@@ -8,6 +16,10 @@ export const BASELINE_ACTIVITIES: Activity[] = [
     predecessors: [],
     description: 'Gather stakeholder requirements, interview faculty and students, specify functional specifications for the University Management System.',
     category: 'Planning',
+    progress: 100,
+    dependencyClassification: 'Internal',
+    dependencyRelations: [],
+    isMilestone: false,
   },
   {
     id: 'B',
@@ -16,6 +28,12 @@ export const BASELINE_ACTIVITIES: Activity[] = [
     predecessors: ['A'],
     description: 'Architect overall system modules, authentication, API contracts, and user interface workflows.',
     category: 'Design',
+    progress: 80,
+    dependencyClassification: 'Mandatory',
+    dependencyRelations: [
+      { predecessorId: 'A', type: 'FS', lag: 0, classification: 'Mandatory' },
+    ],
+    isMilestone: false,
   },
   {
     id: 'C',
@@ -24,6 +42,12 @@ export const BASELINE_ACTIVITIES: Activity[] = [
     predecessors: ['A'],
     description: 'Design normalized relational schemas, ER diagrams, indexes, and university data tables.',
     category: 'Design',
+    progress: 65,
+    dependencyClassification: 'Mandatory',
+    dependencyRelations: [
+      { predecessorId: 'A', type: 'FS', lag: 0, classification: 'Mandatory' },
+    ],
+    isMilestone: false,
   },
   {
     id: 'D',
@@ -32,6 +56,13 @@ export const BASELINE_ACTIVITIES: Activity[] = [
     predecessors: ['B', 'C'],
     description: 'Implement core backend services, portal frontend, and database queries. Requires both system and database designs.',
     category: 'Engineering',
+    progress: 25,
+    dependencyClassification: 'Mandatory',
+    dependencyRelations: [
+      { predecessorId: 'B', type: 'FS', lag: 0, classification: 'Mandatory' },
+      { predecessorId: 'C', type: 'FS', lag: 0, classification: 'Mandatory' },
+    ],
+    isMilestone: false,
   },
   {
     id: 'E',
@@ -40,6 +71,12 @@ export const BASELINE_ACTIVITIES: Activity[] = [
     predecessors: ['D'],
     description: 'Execute integration tests, end-to-end security audits, and load testing on the staging cluster.',
     category: 'Quality',
+    progress: 0,
+    dependencyClassification: 'Discretionary',
+    dependencyRelations: [
+      { predecessorId: 'D', type: 'FS', lag: 0, classification: 'Discretionary' },
+    ],
+    isMilestone: false,
   },
   {
     id: 'F',
@@ -48,8 +85,100 @@ export const BASELINE_ACTIVITIES: Activity[] = [
     predecessors: ['E'],
     description: 'Conduct workshops for university registrars, faculty, and student administrators prior to go-live.',
     category: 'Deployment',
+    progress: 0,
+    dependencyClassification: 'External',
+    dependencyRelations: [
+      { predecessorId: 'E', type: 'FS', lag: 0, classification: 'External' },
+    ],
+    isMilestone: false,
   },
 ];
+
+/**
+ * Validates activity attributes, IDs, durations, and predecessor references.
+ * Does not silently drop or ignore invalid inputs.
+ */
+export function validateActivities(activities: Activity[]): ValidationResult {
+  const errors: ValidationError[] = [];
+
+  if (!activities || activities.length === 0) {
+    errors.push({
+      field: 'activities',
+      message: 'Project must contain at least one activity.',
+    });
+    return { isValid: false, errors };
+  }
+
+  const seenIds = new Set<string>();
+  for (const act of activities) {
+    // 1. Activity ID presence
+    if (!act.id || act.id.trim() === '') {
+      errors.push({
+        field: 'id',
+        message: 'Activity ID cannot be empty.',
+      });
+      continue;
+    }
+
+    // 2. Duplicate Activity ID
+    if (seenIds.has(act.id)) {
+      errors.push({
+        activityId: act.id,
+        field: 'id',
+        message: `Duplicate Activity ID '${act.id}' detected. Each activity must have a unique identifier.`,
+      });
+    }
+    seenIds.add(act.id);
+
+    // 3. Duration validation
+    if (typeof act.duration !== 'number' || isNaN(act.duration)) {
+      errors.push({
+        activityId: act.id,
+        field: 'duration',
+        message: `Activity '${act.id}' has an invalid duration (must be a valid number).`,
+      });
+    } else if (act.duration < 0) {
+      errors.push({
+        activityId: act.id,
+        field: 'duration',
+        message: `Activity '${act.id}' has a negative duration (${act.duration}). Workday duration cannot be negative.`,
+      });
+    } else if (!Number.isInteger(act.duration)) {
+      errors.push({
+        activityId: act.id,
+        field: 'duration',
+        message: `Activity '${act.id}' duration must be an integer workday count.`,
+      });
+    }
+  }
+
+  // 4. Predecessor reference checks
+  for (const act of activities) {
+    for (const pred of act.predecessors) {
+      // Self-reference
+      if (pred === act.id) {
+        errors.push({
+          activityId: act.id,
+          field: 'predecessors',
+          message: `Activity '${act.id}' cannot have itself as a predecessor.`,
+        });
+      }
+      // Unknown predecessor reference
+      else if (!seenIds.has(pred)) {
+        errors.push({
+          activityId: act.id,
+          field: 'predecessors',
+          message: `Activity '${act.id}' references an unknown predecessor '${pred}' that does not exist in the project.`,
+        });
+      }
+    }
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+  };
+}
 
 /**
  * Validates activities and checks for cycles using topological sort (Kahn's algorithm).
@@ -151,7 +280,7 @@ export function findAllPaths(activities: Activity[]): ProjectPath[] {
       id: `path-${idx + 1}`,
       activityIds: pathNodeIds,
       totalDuration: totalDur,
-      isCritical: false, // will be evaluated against project max duration
+      isCritical: false,
       description: pathNodeIds.join(' → '),
     };
   });
@@ -170,7 +299,24 @@ export function findAllPaths(activities: Activity[]): ProjectPath[] {
  * FreeFloat = min(succ.ES) - EF - 1 (or ProjectDuration - EF if terminal)
  */
 export function calculateSchedule(activities: Activity[]): ScheduleCalculationResult {
-  // Check for cycles
+  // 1. Validation check
+  const validation = validateActivities(activities);
+  if (!validation.isValid) {
+    return {
+      activities: {},
+      activityList: [],
+      projectDuration: 0,
+      criticalPaths: [],
+      allPaths: [],
+      criticalActivityIds: [],
+      hasCycle: false,
+      isValid: false,
+      validationErrors: validation.errors,
+      errorMessage: validation.errors.map(e => e.message).join(' | '),
+    };
+  }
+
+  // 2. Cycle detection
   const { hasCycle, sortedIds, cycleNodes } = detectCycles(activities);
   if (hasCycle || !sortedIds) {
     return {
@@ -182,11 +328,11 @@ export function calculateSchedule(activities: Activity[]): ScheduleCalculationRe
       criticalActivityIds: [],
       hasCycle: true,
       cycleNodes,
+      isValid: false,
       errorMessage: `Circular dependency detected involving activities: ${cycleNodes?.join(', ')}`,
     };
   }
 
-  const actMap = new Map<string, Activity>(activities.map(a => [a.id, a]));
   const successorsMap = new Map<string, string[]>();
   for (const act of activities) {
     successorsMap.set(act.id, []);
@@ -308,6 +454,7 @@ export function calculateSchedule(activities: Activity[]): ScheduleCalculationRe
     allPaths,
     criticalActivityIds,
     hasCycle: false,
+    isValid: true,
   };
 }
 
@@ -344,37 +491,38 @@ export function analyzeDelayImpact(
   if (durationDelta === 0) {
     explanation = `Activity ${changedActivityId} (${newAct?.name}) is at its baseline duration of ${newDuration} workdays.`;
     keyTakeaway = `The project schedule matches the original baseline. Critical Path is ${newPathStrings} (${newProjectDuration} days).`;
-  } else if (changedActivityId === 'C') {
-    // Specialized high-yield scenarios for Activity C (the textbook non-critical activity)
-    if (newDuration === 4) {
-      explanation = `Activity C (Database Design) was increased from 3 to 4 days (+1 day). Because C initially had exactly 1 day of Total Float (Slack), this 1-day delay completely absorbed its float without delaying overall project completion (18 days). Both Path 1 (A-B-D-E-F) and Path 2 (A-C-D-E-F) now tie at 18 workdays!`;
-      keyTakeaway = `Key Concept: Absorbing available slack does NOT delay the project, but it turns the path critical, creating multiple critical paths.`;
-    } else if (newDuration >= 5) {
-      const daysOver = newDuration - 3;
-      explanation = `Activity C (Database Design) was increased from 3 to ${newDuration} days (+${daysOver} days). Since C only had 1 day of slack, the extra ${daysOver - 1} day(s) beyond its float pushed the start of Development (Activity D) and extended the entire project from 18 to ${newProjectDuration} days (+${projectDurationDelta} day${projectDurationDelta > 1 ? 's' : ''}). Path 2 (A-C-D-E-F) is now the controlling critical path!`;
-      keyTakeaway = `Key Concept: Any delay beyond an activity's total float directly extends the project completion date.`;
+  } else if (durationDelta > 0) {
+    // Delay / Duration increase
+    if (oldAct?.isCritical) {
+      explanation = `Activity ${changedActivityId} (${newAct?.name}) is on the critical path (Total Float = 0). Increasing its duration by ${durationDelta} day(s) directly extends overall project completion from ${oldProjectDuration} to ${newProjectDuration} workdays (+${projectDurationDelta} days). Downstream successors are delayed accordingly.`;
+      keyTakeaway = 'Critical activities have zero slack: any delay on a critical activity extends total project duration by an identical amount.';
+    } else if (durationDelta <= (oldAct?.totalFloat ?? 0)) {
+      explanation = `Activity ${changedActivityId} (${newAct?.name}) had ${oldAct?.totalFloat} day(s) of Total Float (slack). Increasing its duration by ${durationDelta} day(s) absorbed available buffer (remaining float: ${newAct?.totalFloat}d) without extending overall project completion (${newProjectDuration} workdays).`;
+      if (newAct?.totalFloat === 0) {
+        explanation += ` Because float reached 0, this path is now tied for the longest duration, creating ${currentResult.criticalPaths.length} critical paths (${newPathStrings})!`;
+        keyTakeaway = 'Absorbing all available slack turns a non-critical activity into a critical activity, generating multiple critical paths.';
+      } else {
+        keyTakeaway = 'A non-critical activity delayed within its total float does not extend the project completion date.';
+      }
     } else {
-      // e.g. duration decreased to 2 or 1
-      explanation = `Activity C duration was reduced from 3 to ${newDuration} days. Since C was already non-critical, reducing its duration simply increased its total float from 1 to ${newAct.totalFloat} days. Project duration remains ${newProjectDuration} days.`;
-      keyTakeaway = `Key Concept: Crashing or shortening non-critical tasks does not shorten the project duration.`;
-    }
-  } else if (oldAct?.isCritical) {
-    // Modifying a critical activity
-    if (durationDelta > 0) {
-      explanation = `Activity ${changedActivityId} (${newAct.name}) is on the critical path (Total Float = 0). Increasing its duration by ${durationDelta} day(s) directly extends the overall project duration from ${oldProjectDuration} to ${newProjectDuration} workdays (+${projectDurationDelta} days).`;
-      keyTakeaway = `Key Concept: Critical activities have ZERO float. Every day of delay on a critical activity extends project completion by a full day!`;
-    } else {
-      explanation = `Activity ${changedActivityId} (${newAct.name}) was shortened by ${Math.abs(durationDelta)} day(s). If this was the only controlling path, overall project duration drops from ${oldProjectDuration} to ${newProjectDuration} workdays.`;
-      keyTakeaway = `Key Concept: To compress (crash) a project schedule, project managers must focus exclusively on critical path activities.`;
+      const excessDelay = durationDelta - (oldAct?.totalFloat ?? 0);
+      explanation = `Activity ${changedActivityId} (${newAct?.name}) only had ${oldAct?.totalFloat} day(s) of float buffer. The delay of ${durationDelta} days exceeded its float by ${excessDelay} day(s). This pushed downstream successor starts and extended project completion from ${oldProjectDuration} to ${newProjectDuration} workdays (+${projectDurationDelta} days). Path ${newPathStrings} is now the controlling critical path.`;
+      keyTakeaway = 'Any delay exceeding an activity’s total float directly extends the project completion date by the excess amount.';
     }
   } else {
-    // Non-critical activity
-    if (durationDelta <= (oldAct?.totalFloat ?? 0)) {
-      explanation = `Activity ${changedActivityId} is non-critical. The delay of ${durationDelta} day(s) is within its available float of ${oldAct?.totalFloat} day(s). Total project duration remains unchanged at ${newProjectDuration} workdays.`;
-      keyTakeaway = `Float acts as a buffer against schedule uncertainty for non-critical activities.`;
+    // Compression / Crashing (durationDelta < 0)
+    const savedDays = Math.abs(durationDelta);
+    if (oldAct?.isCritical) {
+      if (projectDurationDelta < 0) {
+        explanation = `Shortening critical activity ${changedActivityId} (${newAct?.name}) by ${savedDays} day(s) compressed the project duration from ${oldProjectDuration} to ${newProjectDuration} workdays (-${Math.abs(projectDurationDelta)} days).`;
+        keyTakeaway = 'To compress overall project duration (schedule crashing), project managers must shorten activities on the critical path.';
+      } else {
+        explanation = `Shortening ${changedActivityId} (${newAct?.name}) by ${savedDays} day(s) did not shorten the overall project (${newProjectDuration} workdays) because a parallel path became the controlling critical path.`;
+        keyTakeaway = 'Crashing a critical path activity only compresses the project until another parallel path becomes the controlling bottleneck.';
+      }
     } else {
-      explanation = `Activity ${changedActivityId} exceeded its total float buffer! The excess delay cascaded into successor tasks, extending project duration to ${newProjectDuration} workdays.`;
-      keyTakeaway = `A non-critical activity becomes critical once all its float is exhausted.`;
+      explanation = `Shortening non-critical activity ${changedActivityId} (${newAct?.name}) by ${savedDays} day(s) increased its total float from ${oldAct?.totalFloat} to ${newAct?.totalFloat} workdays. Overall project duration remains unchanged at ${newProjectDuration} workdays.`;
+      keyTakeaway = 'Shortening non-critical activities does not accelerate project delivery; it only adds unnecessary slack.';
     }
   }
 
@@ -393,4 +541,3 @@ export function analyzeDelayImpact(
     keyTakeaway,
   };
 }
-

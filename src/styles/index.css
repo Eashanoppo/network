@@ -2,17 +2,51 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --bg-canvas: #FFFFFF;
+  --bg-warm: #F4F5F0;
+  --surface-primary: #FFFFFF;
+  --surface-secondary: #EFEFE9;
+  --ink-primary: #151515;
+  --ink-secondary: #686862;
+  --ink-muted: #92928A;
+  --accent-orange: #F26522;
+  --accent-orange-hover: #DE5413;
+  --accent-soft-orange: #FFF4ED;
+  --accent-amber: #F26522;
+  --accent-coral: #BE645A;
+  --accent-soft-amber: #FFF4ED;
+  --border-default: #E5E6DE;
+  --border-strong: #D8D9D4;
+  --critical-red: #BE645A;
+  --success-green: #4D9574;
+}
+
 @layer base {
   html {
     scroll-behavior: smooth;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    -webkit-font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    background-color: #FFFFFF;
+    color: #151515;
+    scrollbar-width: thin;
+    scrollbar-color: #D8D9D4 #F4F5F0;
   }
 
   body {
-    @apply bg-canvas text-ink-primary font-sans antialiased;
+    background-color: #FFFFFF;
+    color: #151515;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
+  }
+
+  /* Headings with tight, clean tracking */
+  h1, h2, h3, h4 {
+    letter-spacing: -0.025em;
   }
 
   /* Tabular numbers for all calculations and dates */
@@ -23,32 +57,32 @@
 
 /* Custom subtle scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #F1F3F6;
+  background: #F4F5F0;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #D3D8E2;
-  border-radius: 4px;
+  background: #D8D9D4;
+  border-radius: 2px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #B4BCCB;
+  background: #B0B0A8;
 }
 
-/* Restrained pulse for critical paths */
+/* Restrained critical pulse */
 @keyframes critical-glow {
   0%, 100% {
     stroke-opacity: 1;
-    filter: drop-shadow(0 0 2px rgba(214, 107, 104, 0.4));
+    filter: drop-shadow(0 0 2px rgba(190, 100, 90, 0.4));
   }
   50% {
-    stroke-opacity: 0.75;
-    filter: drop-shadow(0 0 6px rgba(214, 107, 104, 0.7));
+    stroke-opacity: 0.8;
+    filter: drop-shadow(0 0 4px rgba(190, 100, 90, 0.6));
   }
 }
 
@@ -76,4 +110,3 @@
     scroll-behavior: auto !important;
   }
 }
-

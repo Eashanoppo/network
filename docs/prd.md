@@ -652,10 +652,10 @@ Use colors to communicate meaning.
 | Card background | `#FFFFFF` |
 | Main text       | `#202938` |
 | Secondary text  | `#687385` |
-| Primary accent  | `#477CB8` |
+| Primary accent  | `#F26522` (Vibrant Orange) |
 | Success         | `#4D9574` |
-| Warning         | `#D6A14C` |
-| Critical path   | `#D66B68` |
+| Warning         | `#F26522` |
+| Critical path   | `#BE645A` |
 | Borders         | `#E6E9EF` |
 
 No dark backgrounds, neon effects, excessive gradients or colorful glassmorphism.

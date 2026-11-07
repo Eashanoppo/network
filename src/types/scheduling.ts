@@ -1,3 +1,10 @@
+export interface ActivityDependency {
+  predecessorId: string;
+  type: RelationshipType;
+  lag?: number;
+  classification?: DependencyClassification;
+}
+
 export interface Activity {
   id: string;
   name: string;
@@ -5,6 +12,15 @@ export interface Activity {
   predecessors: string[];
   description?: string;
   category?: 'Planning' | 'Design' | 'Engineering' | 'Quality' | 'Deployment';
+  progress?: number; // 0 to 100%
+  isMilestone?: boolean;
+  dependencyClassification?: DependencyClassification;
+  dependencyRelations?: ActivityDependency[];
+  pert?: {
+    optimistic: number;
+    mostLikely: number;
+    pessimistic: number;
+  };
 }
 
 export interface CalculatedActivity extends Activity {
@@ -26,6 +42,17 @@ export interface ProjectPath {
   description: string;
 }
 
+export interface ValidationError {
+  activityId?: string;
+  field: string;
+  message: string;
+}
+
+export interface ValidationResult {
+  isValid: boolean;
+  errors: ValidationError[];
+}
+
 export interface ScheduleCalculationResult {
   activities: Record<string, CalculatedActivity>;
   activityList: CalculatedActivity[];
@@ -36,6 +63,66 @@ export interface ScheduleCalculationResult {
   hasCycle: boolean;
   cycleNodes?: string[];
   errorMessage?: string;
+  validationErrors?: ValidationError[];
+  isValid: boolean;
+}
+
+export interface ActivityChangeDelta {
+  activityId: string;
+  name: string;
+  durationChanged: boolean;
+  oldDuration: number;
+  newDuration: number;
+  durationDelta: number;
+  esChanged: boolean;
+  oldEs: number;
+  newEs: number;
+  efChanged: boolean;
+  oldEf: number;
+  newEf: number;
+  lsChanged: boolean;
+  oldLs: number;
+  newLs: number;
+  lfChanged: boolean;
+  oldLf: number;
+  newLf: number;
+  floatChanged: boolean;
+  oldFloat: number;
+  newFloat: number;
+  floatDelta: number;
+  criticalStatusChanged: boolean;
+  wasCritical: boolean;
+  isCritical: boolean;
+}
+
+export interface ScheduleComparisonResult {
+  projectDurationDelta: number;
+  oldProjectDuration: number;
+  newProjectDuration: number;
+  projectDurationChanged: boolean;
+  affectedActivityIds: string[];
+  activityDeltas: Record<string, ActivityChangeDelta>;
+  criticalPathsChanged: boolean;
+  oldCriticalPaths: ProjectPath[];
+  newCriticalPaths: ProjectPath[];
+  newCriticalActivities: string[];
+  lostCriticalActivities: string[];
+  explanation: string;
+  keyTakeaway: string;
+}
+
+export type SimulationType = 'duration' | 'delay' | 'dependency' | 'pert';
+
+export interface SimulationScenario {
+  id: string;
+  type: SimulationType;
+  description: string;
+  targetActivityId: string;
+  proposedActivities: Activity[];
+  schedule: ScheduleCalculationResult;
+  comparison: ScheduleComparisonResult;
+  isValid: boolean;
+  validationErrors: ValidationError[];
 }
 
 export interface DelayImpactAnalysis {
@@ -86,8 +173,19 @@ export interface ProcessStep {
 
 export interface QuizQuestion {
   id: number;
-  category: 'Process' | 'Classification' | 'Relationships' | 'Network' | 'CPM' | 'Slack' | 'Gantt' | 'PERT' | 'Simulation';
-  memberTag: string; // e.g. "Member 1", "Member 4"
+  category:
+    | 'Process'
+    | 'Classification'
+    | 'Relationships'
+    | 'Network'
+    | 'CPM'
+    | 'Slack'
+    | 'Gantt'
+    | 'PERT'
+    | 'Simulation'
+    | 'True/False'
+    | 'Critical Path Identification';
+  memberTag: string;
   question: string;
   scenario?: string;
   options: {
@@ -99,3 +197,14 @@ export interface QuizQuestion {
   academicNote: string;
 }
 
+export interface ChapterInfo {
+  number: number;
+  id: string;
+  title: string;
+  shortTitle: string;
+  member: string;
+  memberId: 'member-1' | 'member-2' | 'member-3' | 'member-4' | 'member-5' | 'all';
+  durationMinutes: number;
+  learningObjective: string;
+  keyTakeaway: string;
+}

@@ -1,9 +1,37 @@
 import React from 'react';
 import { useSchedule } from '../../context/ScheduleContext';
-import { AlertTriangle, Info, RotateCcw, ArrowRight } from 'lucide-react';
+import { AlertTriangle, Info, RotateCcw, AlertCircle, X } from 'lucide-react';
 
 export const LiveDelayAlert: React.FC = () => {
-  const { delayImpact, isModified, resetToBaseline, schedule } = useSchedule();
+  const { delayImpact, isModified, resetToBaseline, schedule, scheduleError, clearScheduleError } =
+    useSchedule();
+
+  if (scheduleError) {
+    return (
+      <div className="mb-6 rounded-xl border p-4 transition-all bg-critical-light border-critical-border text-critical">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start space-x-3">
+            <AlertCircle className="w-5 h-5 text-critical shrink-0 mt-0.5" />
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider block">
+                Invalid Schedule Modification Rejected
+              </span>
+              <p className="mt-1 text-xs text-ink-primary font-medium leading-relaxed font-mono">
+                {scheduleError}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={clearScheduleError}
+            className="p-1 rounded-md hover:bg-critical/10 text-critical transition-colors"
+            title="Dismiss error"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (!isModified || !delayImpact) return null;
 
@@ -12,57 +40,49 @@ export const LiveDelayAlert: React.FC = () => {
 
   return (
     <div
-      className={`mb-6 rounded-lg border p-4 transition-all shadow-subtle ${
+      className={`mb-6 rounded-xl border p-4 transition-all shadow-xs ${
         isDelayExtended
-          ? 'bg-critical-light/70 border-critical-border text-critical'
-          : 'bg-warning-light/80 border-warning-border text-ink-primary'
+          ? 'bg-critical-light border-critical-border text-ink-primary'
+          : 'bg-warm border-border text-ink-primary'
       }`}
     >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-start space-x-3">
           <div className="mt-0.5">
             {isDelayExtended ? (
-              <AlertTriangle className="w-5 h-5 text-critical shrink-0" />
+              <AlertTriangle className="w-4 h-4 text-critical shrink-0" />
             ) : (
-              <Info className="w-5 h-5 text-warning shrink-0" />
+              <Info className="w-4 h-4 text-brand shrink-0" />
             )}
           </div>
           <div>
             <div className="flex items-center space-x-2">
               <span className="text-xs font-bold uppercase tracking-wider">
-                Live Dynamic Schedule Recalculation Active
+                {isDelayExtended ? 'Project Deadline Impact Warning' : 'Float Buffer Absorbed'}
               </span>
-              <span className="text-[11px] px-2 py-0.5 rounded-full font-mono font-semibold bg-white border border-border">
-                Activity {delayImpact.changedActivityId}: {delayImpact.oldDuration}d → {delayImpact.newDuration}d
+              <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-white border border-border">
+                {isDelayExtended
+                  ? `+${delayImpact.projectDurationDelta} Workdays`
+                  : '0 Workday Extension'}
               </span>
             </div>
             <p className="mt-1 text-xs text-ink-secondary leading-relaxed">
               {delayImpact.explanation}
             </p>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-medium">
-              <span className="text-ink-primary">
-                Current Duration: <strong className="font-mono text-ink-primary">{schedule.projectDuration} workdays</strong>
-              </span>
-              <span className="text-ink-muted">&bull;</span>
-              <span className="text-ink-primary flex items-center space-x-1">
-                <span>Critical Path:</span>
-                <strong className="font-mono text-critical font-bold">{criticalPathStr}</strong>
-              </span>
-              <span className="text-ink-muted">&bull;</span>
-              <span className="italic text-ink-secondary">{delayImpact.keyTakeaway}</span>
+            <div className="mt-1 text-[11px] text-ink-muted">
+              Active Critical Path: <strong className="font-mono text-ink-primary">{criticalPathStr}</strong> (Total: {schedule.projectDuration} workdays)
             </div>
           </div>
         </div>
 
         <button
           onClick={resetToBaseline}
-          className="self-start sm:self-center shrink-0 px-3 py-1.5 rounded-md text-xs font-medium bg-white border border-border hover:bg-canvas text-ink-primary transition-colors flex items-center space-x-1.5 shadow-xs"
+          className="shrink-0 px-3 py-1.5 rounded-md text-xs font-semibold bg-white border border-border hover:bg-warm text-ink-primary transition-colors flex items-center space-x-1.5 shadow-xs"
         >
-          <RotateCcw className="w-3.5 h-3.5 text-warning" />
-          <span>Reset Baseline (18d)</span>
+          <RotateCcw className="w-3.5 h-3.5 text-ink-secondary" />
+          <span>Reset to Baseline (18d)</span>
         </button>
       </div>
     </div>
   );
 };
-
