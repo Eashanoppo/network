@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-canvas text-ink-primary font-sans antialiased;
+    overflow-x: hidden;
+  }
+
+  /* Tabular numbers for all calculations and dates */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Custom subtle scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F1F3F6;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D3D8E2;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #B4BCCB;
+}
+
+/* Restrained pulse for critical paths */
+@keyframes critical-glow {
+  0%, 100% {
+    stroke-opacity: 1;
+    filter: drop-shadow(0 0 2px rgba(214, 107, 104, 0.4));
+  }
+  50% {
+    stroke-opacity: 0.75;
+    filter: drop-shadow(0 0 6px rgba(214, 107, 104, 0.7));
+  }
+}
+
+.animate-critical-glow {
+  animation: critical-glow 2.5s ease-in-out infinite;
+}
+
+/* Flow animation along dependency connector */
+@keyframes dash-flow {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+.animate-dash-flow {
+  stroke-dasharray: 6, 4;
+  animation: dash-flow 1.5s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
