@@ -85,11 +85,11 @@ export const KnowledgeCheckQuiz: React.FC = () => {
         />
 
         {/* Top Mode Tabs */}
-        <div className="flex items-center justify-between mb-6 border-b border-border pb-3">
-          <div className="flex items-center space-x-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 border-b border-border pb-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
             <button
               onClick={() => setActiveTab('quiz')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center space-x-2 ${
+              className={`px-3.5 py-2 sm:py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-center space-x-2 min-h-[44px] sm:min-h-0 ${
                 activeTab === 'quiz'
                   ? 'bg-ink-primary text-white shadow-xs'
                   : 'bg-white text-ink-secondary hover:text-ink-primary border border-border'
@@ -101,7 +101,7 @@ export const KnowledgeCheckQuiz: React.FC = () => {
 
             <button
               onClick={() => setActiveTab('challenge')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center space-x-2 ${
+              className={`px-3.5 py-2 sm:py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-center space-x-2 min-h-[44px] sm:min-h-0 ${
                 activeTab === 'challenge'
                   ? 'bg-ink-primary text-white shadow-xs'
                   : 'bg-white text-ink-secondary hover:text-ink-primary border border-border'

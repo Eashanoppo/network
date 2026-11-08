@@ -301,10 +301,10 @@ export const SimulationWorkspace: React.FC = () => {
                 </div>
 
                 {/* Action Buttons: Apply or Discard */}
-                <div className="flex items-center space-x-2 shrink-0">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto shrink-0">
                   <button
                     onClick={discardActiveSimulation}
-                    className="px-3 py-1.5 rounded-md text-xs font-semibold bg-white border border-border hover:bg-surface-secondary text-ink-secondary hover:text-ink-primary transition-colors flex items-center space-x-1"
+                    className="px-3 py-2 sm:py-1.5 rounded-md text-xs font-semibold bg-white border border-border hover:bg-surface-secondary text-ink-secondary hover:text-ink-primary transition-colors flex items-center justify-center space-x-1 min-h-[44px] sm:min-h-0"
                   >
                     <X className="w-3.5 h-3.5" />
                     <span>Discard</span>
@@ -312,7 +312,7 @@ export const SimulationWorkspace: React.FC = () => {
 
                   <button
                     onClick={applyActiveSimulation}
-                    className="px-4 py-1.5 rounded-md text-xs font-bold bg-brand text-white hover:bg-brand-hover transition-colors shadow-xs flex items-center space-x-1"
+                    className="px-4 py-2 sm:py-1.5 rounded-md text-xs font-bold bg-brand text-white hover:bg-brand-hover transition-colors shadow-xs flex items-center justify-center space-x-1 min-h-[44px] sm:min-h-0"
                   >
                     <Check className="w-3.5 h-3.5 text-white" />
                     <span>Commit to Schedule</span>

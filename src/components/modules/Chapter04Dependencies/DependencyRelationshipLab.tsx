@@ -208,7 +208,7 @@ export const DependencyRelationshipLab: React.FC = () => {
               </div>
 
               {/* Relationship Buttons */}
-              <div className="inline-flex rounded-lg border border-border p-1 bg-warm">
+              <div className="grid grid-cols-4 sm:inline-flex rounded-lg border border-border p-1 bg-warm w-full sm:w-auto">
                 {RELATIONSHIP_TYPES_DATA.map(rel => (
                   <button
                     key={rel.type}
@@ -216,7 +216,7 @@ export const DependencyRelationshipLab: React.FC = () => {
                       setSelectedRelType(rel.type);
                       setLagDays(0);
                     }}
-                    className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                    className={`px-3 py-1.5 rounded-md text-xs font-semibold text-center transition-all ${
                       selectedRelType === rel.type
                         ? 'bg-white text-ink-primary shadow-xs font-bold'
                         : 'text-ink-secondary hover:text-ink-primary'
@@ -229,7 +229,7 @@ export const DependencyRelationshipLab: React.FC = () => {
             </div>
 
             {/* Visual Lab Workspace */}
-            <div className="bg-warm rounded-lg p-5 sm:p-6 border border-border mb-6">
+            <div className="bg-warm rounded-lg p-4 sm:p-6 border border-border mb-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
                 <div>
                   <div className="flex items-center space-x-2">
@@ -249,27 +249,34 @@ export const DependencyRelationshipLab: React.FC = () => {
                 </div>
 
                 {/* Interactive Lag Slider */}
-                <div className="flex items-center space-x-3 bg-white px-3.5 py-2 rounded-lg border border-border shadow-xs">
-                  <Sliders className="w-3.5 h-3.5 text-brand" />
-                  <label className="text-xs font-semibold text-ink-primary whitespace-nowrap">
-                    Lag / Lead:
-                  </label>
-                  <input
-                    type="range"
-                    min={-2}
-                    max={4}
-                    value={lagDays}
-                    onChange={e => setLagDays(Number(e.target.value))}
-                    className="w-24 accent-brand cursor-pointer"
-                  />
-                  <span className="text-xs font-mono font-bold text-ink-primary w-12 text-right">
-                    {lagDays > 0 ? `+${lagDays}d lag` : lagDays < 0 ? `${lagDays}d lead` : '0d'}
-                  </span>
+                <div className="flex items-center justify-between sm:justify-start space-x-3 bg-white px-3.5 py-2 rounded-lg border border-border shadow-xs">
+                  <div className="flex items-center space-x-2">
+                    <Sliders className="w-3.5 h-3.5 text-brand" />
+                    <label className="text-xs font-semibold text-ink-primary whitespace-nowrap">
+                      Lag / Lead:
+                    </label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="range"
+                      min={-2}
+                      max={4}
+                      value={lagDays}
+                      onChange={e => setLagDays(Number(e.target.value))}
+                      className="w-20 sm:w-24 accent-brand cursor-pointer"
+                    />
+                    <span className="text-xs font-mono font-bold text-ink-primary w-14 text-right">
+                      {lagDays > 0 ? `+${lagDays}d lag` : lagDays < 0 ? `${lagDays}d lead` : '0d'}
+                    </span>
+                  </div>
                 </div>
               </div>
 
               {/* Timeline Bar Demonstration */}
               <div className="py-6 overflow-x-auto">
+                <div className="sm:hidden flex items-center space-x-1 text-[11px] text-ink-muted mb-2">
+                  <span className="font-semibold text-brand">Swipe timeline horizontally &rarr;</span>
+                </div>
                 <div className="min-w-[600px] relative">
                   {/* Day Header */}
                   <div className="flex border-b border-border pb-2 mb-4 text-xs font-mono text-ink-muted">

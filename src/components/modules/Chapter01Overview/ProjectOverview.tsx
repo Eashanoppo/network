@@ -84,24 +84,24 @@ export const ProjectOverview: React.FC = () => {
               <span>Academic Presentation Suite &bull; Software Engineering</span>
             </div>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-ink-primary tracking-tight leading-[1.08] font-sans">
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-bold text-ink-primary tracking-tight leading-[1.1] font-sans">
               Plan smarter.<br />
               Schedule with confidence.
             </h1>
 
-            <p className="mt-5 text-base sm:text-lg text-ink-secondary max-w-xl leading-relaxed">
+            <p className="mt-4 sm:mt-5 text-sm sm:text-lg text-ink-secondary max-w-xl leading-relaxed">
               Explore project scheduling through interactive network diagrams, critical path calculations, Gantt charts, precedence dependencies, and real-time schedule simulations.
             </p>
 
             {/* Action CTAs */}
-            <div className="mt-8 flex flex-wrap items-center gap-3">
+            <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <button
                 onClick={() => {
                   const el = document.getElementById('chapter-02');
                   if (el) el.scrollIntoView({ behavior: 'smooth' });
                   else goToChapter(2);
                 }}
-                className="px-5 py-2.5 rounded-md text-xs sm:text-sm font-bold bg-brand text-white hover:bg-brand-hover transition-colors shadow-xs flex items-center space-x-2"
+                className="px-5 py-3 rounded-md text-xs sm:text-sm font-bold bg-brand text-white hover:bg-brand-hover transition-colors shadow-xs flex items-center justify-center space-x-2 min-h-[44px]"
               >
                 <span>Explore the platform</span>
                 <ArrowRight className="w-4 h-4" />
@@ -113,7 +113,7 @@ export const ProjectOverview: React.FC = () => {
                   if (simSection) simSection.scrollIntoView({ behavior: 'smooth' });
                   else goToChapter(6);
                 }}
-                className="px-5 py-2.5 rounded-md text-xs sm:text-sm font-semibold bg-white text-ink-primary hover:bg-warm border border-border transition-colors flex items-center space-x-2"
+                className="px-5 py-3 rounded-md text-xs sm:text-sm font-semibold bg-white text-ink-primary hover:bg-warm border border-border transition-colors flex items-center justify-center space-x-2 min-h-[44px]"
               >
                 <Sliders className="w-4 h-4 text-ink-secondary" />
                 <span>Try interactive simulations</span>
@@ -184,7 +184,7 @@ export const ProjectOverview: React.FC = () => {
                     <span className="text-[10px] text-ink-muted">Select node to inspect</span>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {schedule.activityList.map(act => {
                       const isSelected = selectedActivityId === act.id;
                       return (

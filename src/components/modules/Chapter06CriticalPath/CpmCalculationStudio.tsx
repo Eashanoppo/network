@@ -237,11 +237,11 @@ export const CpmCalculationStudio: React.FC = () => {
         </div>
 
         {/* View Mode Toggle: Interactive Schedule Table vs Guided Walkthrough */}
-        <div className="flex items-center justify-between mb-6 border-b border-border pb-3">
-          <div className="flex items-center space-x-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 border-b border-border pb-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
             <button
               onClick={() => setActiveTab('table')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center space-x-2 ${
+              className={`px-3.5 py-2 sm:py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-center space-x-2 min-h-[44px] sm:min-h-0 ${
                 activeTab === 'table'
                   ? 'bg-ink-primary text-white shadow-xs'
                   : 'bg-white text-ink-secondary hover:text-ink-primary border border-border'
@@ -253,7 +253,7 @@ export const CpmCalculationStudio: React.FC = () => {
 
             <button
               onClick={() => setActiveTab('walkthrough')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center space-x-2 ${
+              className={`px-3.5 py-2 sm:py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-center space-x-2 min-h-[44px] sm:min-h-0 ${
                 activeTab === 'walkthrough'
                   ? 'bg-ink-primary text-white shadow-xs'
                   : 'bg-white text-ink-secondary hover:text-ink-primary border border-border'
@@ -369,6 +369,9 @@ export const CpmCalculationStudio: React.FC = () => {
             </div>
 
             {/* Calculation Table */}
+            <div className="sm:hidden flex items-center space-x-1 text-[11px] text-ink-muted mb-2">
+              <span className="font-semibold text-brand">Swipe table horizontally for all 11 columns &rarr;</span>
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs sm:text-sm border-collapse">
                 <thead>

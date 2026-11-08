@@ -149,7 +149,10 @@ export const GanttChartStudio: React.FC = () => {
         </div>
 
         {/* Timeline Grid Area */}
-        <div className="mt-4 overflow-x-auto">
+        <div className="sm:hidden flex items-center space-x-1 text-[11px] text-ink-muted mt-3 mb-1">
+          <span className="font-semibold text-brand">Swipe timeline horizontally for full 22-day calendar &rarr;</span>
+        </div>
+        <div className="mt-2 sm:mt-4 overflow-x-auto">
           <div className="min-w-[920px] relative select-none pb-4">
             {/* Timeline Header (Workdays Ruler) */}
             <div className="flex border-b border-border pb-2.5 mb-2 text-xs font-mono">

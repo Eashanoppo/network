@@ -38,8 +38,11 @@ export const PresenterStageBar: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-4xl px-4 pointer-events-none">
-      <div className="bg-white/95 backdrop-blur-md border border-border rounded-xl shadow-elevated p-3 pointer-events-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+    <div className="fixed bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-4xl px-2 sm:px-4 pointer-events-none">
+      <div
+        style={{ backgroundColor: '#ffffff' }}
+        className="bg-white border border-border rounded-xl shadow-2xl p-2.5 sm:p-3 pointer-events-auto flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 text-xs"
+      >
         {/* Left: Speaker & Chapter Status */}
         <div className="flex items-center space-x-3">
           <div className="w-7 h-7 rounded-md bg-ink-primary text-white flex items-center justify-center font-bold text-xs shrink-0 font-mono">

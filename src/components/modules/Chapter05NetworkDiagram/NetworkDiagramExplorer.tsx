@@ -437,8 +437,22 @@ export const NetworkDiagramExplorer: React.FC = () => {
           </div>
 
           {/* Large Prominent Vector SVG Container with Zoom & Interactive Pan */}
+          {/* Mobile Pan / Pinch Helper Hint */}
+          <div className="sm:hidden flex items-center justify-between text-[11px] text-ink-muted mt-3 mb-1 px-1">
+            <span className="flex items-center space-x-1">
+              <Move className="w-3 h-3 text-brand" />
+              <span>Drag to pan graph • Tap node to inspect</span>
+            </span>
+            <button
+              onClick={handleFitToScreen}
+              className="text-brand font-semibold hover:underline"
+            >
+              Reset View
+            </button>
+          </div>
+
           <div
-            className={`relative mt-4 bg-white rounded-lg border border-border p-4 sm:p-6 overflow-hidden shadow-xs touch-none select-none ${
+            className={`relative mt-2 sm:mt-4 bg-white rounded-lg border border-border p-3 sm:p-6 overflow-hidden shadow-xs touch-none select-none ${
               isDragging ? 'cursor-grabbing' : 'cursor-grab'
             }`}
             onPointerDown={handlePointerDown}
