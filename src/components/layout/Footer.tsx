@@ -130,7 +130,7 @@ export const Footer: React.FC = () => {
                 <em>A Guide to the Project Management Body of Knowledge (PMBOK® Guide)</em>. Standard for Precedence Diagramming Method &amp; CPM.
               </li>
               <li className="leading-relaxed">
-                <strong className="text-ink-primary">Convention:</strong> Workday inclusive indexing ($ES = 1, EF = ES + D - 1, LS = LF - D + 1$).
+                <strong className="text-ink-primary">Convention:</strong> Zero-based standard indexing ($ES = 0, EF = ES + D, LS = LF - D$).
               </li>
             </ul>
           </div>

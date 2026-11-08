@@ -79,11 +79,11 @@ describe('Shared Schedule & Data Synchronization Verification (Prompt 4)', () =>
     // Project duration directly extends by 2 days (18 -> 20)
     expect(result.projectDuration).toBe(20);
 
-    // Downstream activities shift: D was ES 8 -> now ES 10
-    expect(result.activities['D'].es).toBe(10);
+    // Downstream activities shift: D was ES 7 -> now ES 9
+    expect(result.activities['D'].es).toBe(9);
     expect(result.activities['D'].ef).toBe(15);
-    expect(result.activities['E'].es).toBe(16);
-    expect(result.activities['F'].es).toBe(19);
+    expect(result.activities['E'].es).toBe(15);
+    expect(result.activities['F'].es).toBe(18);
     expect(result.activities['F'].ef).toBe(20);
 
     // Non-critical C gets more slack (from 1d to 3d)
@@ -120,9 +120,9 @@ describe('Shared Schedule & Data Synchronization Verification (Prompt 4)', () =>
     const actC = baseSchedule.activities['C'];
 
     // In Network Diagram, CPM table, Gantt Chart:
-    expect(actC.es).toBe(4);
+    expect(actC.es).toBe(3);
     expect(actC.ef).toBe(6);
-    expect(actC.ls).toBe(5);
+    expect(actC.ls).toBe(4);
     expect(actC.lf).toBe(7);
     expect(actC.totalFloat).toBe(1);
     expect(actC.freeFloat).toBe(1);
@@ -137,7 +137,7 @@ describe('Shared Schedule & Data Synchronization Verification (Prompt 4)', () =>
 
     // Duration and CPM metrics remain completely stable
     expect(result.projectDuration).toBe(18);
-    expect(result.activities['C'].es).toBe(4);
+    expect(result.activities['C'].es).toBe(3);
     expect(result.activities['C'].ef).toBe(6);
     expect(result.activities['C'].totalFloat).toBe(1);
     expect(result.activities['C'].progress).toBe(100);
@@ -151,8 +151,8 @@ describe('Shared Schedule & Data Synchronization Verification (Prompt 4)', () =>
     const result = calculateSchedule(modifiedActivities);
 
     expect(result.isValid).toBe(true);
-    // Activity E now starts right after A finishes (Day 4 instead of Day 14!)
-    expect(result.activities['E'].es).toBe(4);
+    // Activity E now starts right after A finishes (Day 3 instead of Day 13!)
+    expect(result.activities['E'].es).toBe(3);
     expect(result.activities['E'].ef).toBe(6);
   });
 

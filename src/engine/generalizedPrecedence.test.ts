@@ -21,46 +21,46 @@ describe('Generalized Precedence Scheduling Engine (PDM) Tests', () => {
       expect(schedule.projectDuration).toBe(18);
 
       // Verify earliest and latest dates for all 6 activities
-      // A (3d): ES=1, EF=3, LS=1, LF=3, Float=0
-      expect(schedule.activities['A'].es).toBe(1);
+      // A (3d): ES=0, EF=3, LS=0, LF=3, Float=0
+      expect(schedule.activities['A'].es).toBe(0);
       expect(schedule.activities['A'].ef).toBe(3);
-      expect(schedule.activities['A'].ls).toBe(1);
+      expect(schedule.activities['A'].ls).toBe(0);
       expect(schedule.activities['A'].lf).toBe(3);
       expect(schedule.activities['A'].totalFloat).toBe(0);
       expect(schedule.activities['A'].isCritical).toBe(true);
 
-      // B (4d): ES=4, EF=7, LS=4, LF=7, Float=0
-      expect(schedule.activities['B'].es).toBe(4);
+      // B (4d): ES=3, EF=7, LS=3, LF=7, Float=0
+      expect(schedule.activities['B'].es).toBe(3);
       expect(schedule.activities['B'].ef).toBe(7);
-      expect(schedule.activities['B'].ls).toBe(4);
+      expect(schedule.activities['B'].ls).toBe(3);
       expect(schedule.activities['B'].lf).toBe(7);
       expect(schedule.activities['B'].totalFloat).toBe(0);
       expect(schedule.activities['B'].isCritical).toBe(true);
 
-      // C (3d): ES=4, EF=6, LS=5, LF=7, Float=1
-      expect(schedule.activities['C'].es).toBe(4);
+      // C (3d): ES=3, EF=6, LS=4, LF=7, Float=1
+      expect(schedule.activities['C'].es).toBe(3);
       expect(schedule.activities['C'].ef).toBe(6);
-      expect(schedule.activities['C'].ls).toBe(5);
+      expect(schedule.activities['C'].ls).toBe(4);
       expect(schedule.activities['C'].lf).toBe(7);
       expect(schedule.activities['C'].totalFloat).toBe(1);
       expect(schedule.activities['C'].isCritical).toBe(false);
 
-      // D (6d): ES=8, EF=13, LS=8, LF=13, Float=0
-      expect(schedule.activities['D'].es).toBe(8);
+      // D (6d): ES=7, EF=13, LS=7, LF=13, Float=0
+      expect(schedule.activities['D'].es).toBe(7);
       expect(schedule.activities['D'].ef).toBe(13);
-      expect(schedule.activities['D'].ls).toBe(8);
+      expect(schedule.activities['D'].ls).toBe(7);
       expect(schedule.activities['D'].lf).toBe(13);
       expect(schedule.activities['D'].totalFloat).toBe(0);
       expect(schedule.activities['D'].isCritical).toBe(true);
 
-      // E (3d): ES=14, EF=16, LS=14, LF=16, Float=0
-      expect(schedule.activities['E'].es).toBe(14);
+      // E (3d): ES=13, EF=16, LS=13, LF=16, Float=0
+      expect(schedule.activities['E'].es).toBe(13);
       expect(schedule.activities['E'].ef).toBe(16);
       expect(schedule.activities['E'].totalFloat).toBe(0);
       expect(schedule.activities['E'].isCritical).toBe(true);
 
-      // F (2d): ES=17, EF=18, LS=17, LF=18, Float=0
-      expect(schedule.activities['F'].es).toBe(17);
+      // F (2d): ES=16, EF=18, LS=16, LF=18, Float=0
+      expect(schedule.activities['F'].es).toBe(16);
       expect(schedule.activities['F'].ef).toBe(18);
       expect(schedule.activities['F'].totalFloat).toBe(0);
       expect(schedule.activities['F'].isCritical).toBe(true);
@@ -184,15 +184,15 @@ describe('Generalized Precedence Scheduling Engine (PDM) Tests', () => {
       const schedule = calculateSchedule(activities);
 
       expect(schedule.projectDuration).toBe(7);
-      expect(schedule.activities['A'].es).toBe(1);
+      expect(schedule.activities['A'].es).toBe(0);
       expect(schedule.activities['A'].ef).toBe(3);
-      expect(schedule.activities['B'].es).toBe(4);
+      expect(schedule.activities['B'].es).toBe(3);
       expect(schedule.activities['B'].ef).toBe(7);
     });
 
-    it('FS with positive lag (+2): successor starts 2 workdays after predecessor finish (EF_p + 1 + 2)', () => {
-      // A (dur 3): ES=1, EF=3
-      // B (dur 4): FS lag +2 -> tS = tF_A + 2 = 3 + 2 = 5 -> ES = 6, EF = 9
+    it('FS with positive lag (+2): successor starts 2 workdays after predecessor finish (EF_p + lag)', () => {
+      // A (dur 3): ES=0, EF=3
+      // B (dur 4): FS lag +2 -> tS = tF_A + 2 = 3 + 2 = 5 -> ES = 5, EF = 9
       const activities: Activity[] = [
         { id: 'A', name: 'Task A', duration: 3, predecessors: [] },
         {
@@ -206,13 +206,13 @@ describe('Generalized Precedence Scheduling Engine (PDM) Tests', () => {
       const schedule = calculateSchedule(activities);
 
       expect(schedule.projectDuration).toBe(9);
-      expect(schedule.activities['B'].es).toBe(6);
+      expect(schedule.activities['B'].es).toBe(5);
       expect(schedule.activities['B'].ef).toBe(9);
     });
 
     it('FS with negative lag / lead (-1): successor starts 1 day before predecessor finishes', () => {
-      // A (dur 4): ES=1, EF=4 (tS=0, tF=4)
-      // B (dur 3): FS lag -1 -> tS = tF_A - 1 = 4 - 1 = 3 -> ES = 4, EF = 6
+      // A (dur 4): ES=0, EF=4 (tS=0, tF=4)
+      // B (dur 3): FS lag -1 -> tS = tF_A - 1 = 4 - 1 = 3 -> ES = 3, EF = 6
       const activities: Activity[] = [
         { id: 'A', name: 'Task A', duration: 4, predecessors: [] },
         {
@@ -226,14 +226,14 @@ describe('Generalized Precedence Scheduling Engine (PDM) Tests', () => {
       const schedule = calculateSchedule(activities);
 
       expect(schedule.activities['A'].ef).toBe(4);
-      expect(schedule.activities['B'].es).toBe(4);
+      expect(schedule.activities['B'].es).toBe(3);
       expect(schedule.activities['B'].ef).toBe(6);
       expect(schedule.projectDuration).toBe(6);
     });
 
-    it('SS with zero lag: successor can start concurrently with predecessor on Day 1', () => {
-      // A (dur 5): ES=1, EF=5 (tS=0, tF=5)
-      // B (dur 3): SS lag 0 -> tS = tS_A + 0 = 0 -> ES = 1, EF = 3
+    it('SS with zero lag: successor can start concurrently with predecessor at Day 0', () => {
+      // A (dur 5): ES=0, EF=5 (tS=0, tF=5)
+      // B (dur 3): SS lag 0 -> tS = tS_A + 0 = 0 -> ES = 0, EF = 3
       const activities: Activity[] = [
         { id: 'A', name: 'Task A', duration: 5, predecessors: [] },
         {
@@ -246,7 +246,7 @@ describe('Generalized Precedence Scheduling Engine (PDM) Tests', () => {
       ];
       const schedule = calculateSchedule(activities);
 
-      expect(schedule.activities['B'].es).toBe(1);
+      expect(schedule.activities['B'].es).toBe(0);
       expect(schedule.activities['B'].ef).toBe(3);
       expect(schedule.projectDuration).toBe(5);
       // Activity B finishes at Day 3, but project completes at Day 5, so B has 2 days float
@@ -254,8 +254,8 @@ describe('Generalized Precedence Scheduling Engine (PDM) Tests', () => {
     });
 
     it('SS with positive lag (+2): successor starts 2 days after predecessor starts', () => {
-      // A (dur 6): ES=1, EF=6 (tS=0, tF=6)
-      // B (dur 4): SS lag +2 -> tS = tS_A + 2 = 0 + 2 = 2 -> ES = 3, EF = 6
+      // A (dur 6): ES=0, EF=6 (tS=0, tF=6)
+      // B (dur 4): SS lag +2 -> tS = tS_A + 2 = 0 + 2 = 2 -> ES = 2, EF = 6
       const activities: Activity[] = [
         { id: 'A', name: 'Task A', duration: 6, predecessors: [] },
         {
@@ -268,8 +268,8 @@ describe('Generalized Precedence Scheduling Engine (PDM) Tests', () => {
       ];
       const schedule = calculateSchedule(activities);
 
-      expect(schedule.activities['A'].es).toBe(1);
-      expect(schedule.activities['B'].es).toBe(3);
+      expect(schedule.activities['A'].es).toBe(0);
+      expect(schedule.activities['B'].es).toBe(2);
       expect(schedule.activities['B'].ef).toBe(6);
       expect(schedule.projectDuration).toBe(6);
       // Both finish on Day 6, both critical
@@ -278,9 +278,9 @@ describe('Generalized Precedence Scheduling Engine (PDM) Tests', () => {
     });
 
     it('FF with positive lag (+2): successor finish must be at least 2 days after predecessor finish', () => {
-      // A (dur 4): ES=1, EF=4 (tS=0, tF=4)
+      // A (dur 4): ES=0, EF=4 (tS=0, tF=4)
       // B (dur 3): FF lag +2 -> tF_B >= tF_A + 2 = 4 + 2 = 6 -> tS_B >= 6 - 3 = 3
-      // ES = 4, EF = 6
+      // ES = 3, EF = 6
       const activities: Activity[] = [
         { id: 'A', name: 'Task A', duration: 4, predecessors: [] },
         {
@@ -295,14 +295,14 @@ describe('Generalized Precedence Scheduling Engine (PDM) Tests', () => {
 
       expect(schedule.activities['A'].ef).toBe(4);
       expect(schedule.activities['B'].ef).toBe(6);
-      expect(schedule.activities['B'].es).toBe(4);
+      expect(schedule.activities['B'].es).toBe(3);
       expect(schedule.projectDuration).toBe(6);
     });
 
     it('SF with positive lag (+5): successor finish must be at least 5 days after predecessor starts', () => {
-      // A (dur 6): ES=1, EF=6 (tS=0, tF=6)
+      // A (dur 6): ES=0, EF=6 (tS=0, tF=6)
       // B (dur 2): SF lag +5 -> tF_B >= tS_A + 5 = 0 + 5 = 5 -> tS_B >= 5 - 2 = 3
-      // ES = 4, EF = 5
+      // ES = 3, EF = 5
       const activities: Activity[] = [
         { id: 'A', name: 'Task A', duration: 6, predecessors: [] },
         {
@@ -315,17 +315,17 @@ describe('Generalized Precedence Scheduling Engine (PDM) Tests', () => {
       ];
       const schedule = calculateSchedule(activities);
 
-      expect(schedule.activities['B'].es).toBe(4);
+      expect(schedule.activities['B'].es).toBe(3);
       expect(schedule.activities['B'].ef).toBe(5);
       expect(schedule.projectDuration).toBe(6);
     });
 
     it('Multiple mixed relationships between the same pair of tasks (SS + FF ladder)', () => {
-      // Task A (dur 8): starts at Day 1 (tS=0, tF=8)
+      // Task A (dur 8): starts at Day 0 (tS=0, tF=8)
       // Task B (dur 5):
-      // Constraint 1: SS lag 2 -> tS_B >= 0 + 2 = 2 (ES >= 3)
-      // Constraint 2: FF lag 1 -> tF_B >= 8 + 1 = 9 -> tS_B >= 9 - 5 = 4 (ES >= 5)
-      // Strongest constraint wins: tS_B = 4 -> ES = 5, EF = 9
+      // Constraint 1: SS lag 2 -> tS_B >= 0 + 2 = 2 (ES >= 2)
+      // Constraint 2: FF lag 1 -> tF_B >= 8 + 1 = 9 -> tS_B >= 9 - 5 = 4 (ES >= 4)
+      // Strongest constraint wins: tS_B = 4 -> ES = 4, EF = 9
       const activities: Activity[] = [
         { id: 'A', name: 'Task A', duration: 8, predecessors: [] },
         {
@@ -342,7 +342,7 @@ describe('Generalized Precedence Scheduling Engine (PDM) Tests', () => {
       const schedule = calculateSchedule(activities);
 
       expect(schedule.projectDuration).toBe(9);
-      expect(schedule.activities['B'].es).toBe(5);
+      expect(schedule.activities['B'].es).toBe(4);
       expect(schedule.activities['B'].ef).toBe(9);
     });
 
@@ -352,7 +352,7 @@ describe('Generalized Precedence Scheduling Engine (PDM) Tests', () => {
       // C (dur 3):
       //   Pred A: FS lag +1 -> tS_C >= 4 + 1 = 5
       //   Pred B: SS lag +4 -> tS_C >= 0 + 4 = 4
-      // Strongest constraint: tS_C = 5 -> ES = 6, EF = 8
+      // Strongest constraint: tS_C = 5 -> ES = 5, EF = 8
       const activities: Activity[] = [
         { id: 'A', name: 'Prep Alpha', duration: 4, predecessors: [] },
         { id: 'B', name: 'Prep Beta', duration: 6, predecessors: [] },
@@ -369,7 +369,7 @@ describe('Generalized Precedence Scheduling Engine (PDM) Tests', () => {
       ];
       const schedule = calculateSchedule(activities);
 
-      expect(schedule.activities['C'].es).toBe(6);
+      expect(schedule.activities['C'].es).toBe(5);
       expect(schedule.activities['C'].ef).toBe(8);
       expect(schedule.projectDuration).toBe(8);
     });
@@ -387,9 +387,9 @@ describe('Generalized Precedence Scheduling Engine (PDM) Tests', () => {
 
       expect(schedule.isValid).toBe(true);
       expect(schedule.projectDuration).toBe(5);
-      expect(schedule.activities['SOLO'].es).toBe(1);
+      expect(schedule.activities['SOLO'].es).toBe(0);
       expect(schedule.activities['SOLO'].ef).toBe(5);
-      expect(schedule.activities['SOLO'].ls).toBe(1);
+      expect(schedule.activities['SOLO'].ls).toBe(0);
       expect(schedule.activities['SOLO'].lf).toBe(5);
       expect(schedule.activities['SOLO'].totalFloat).toBe(0);
       expect(schedule.activities['SOLO'].isCritical).toBe(true);
@@ -405,9 +405,9 @@ describe('Generalized Precedence Scheduling Engine (PDM) Tests', () => {
 
       expect(schedule.projectDuration).toBe(9);
       expect(schedule.activities['1'].ef).toBe(2);
-      expect(schedule.activities['2'].es).toBe(3);
+      expect(schedule.activities['2'].es).toBe(2);
       expect(schedule.activities['2'].ef).toBe(5);
-      expect(schedule.activities['3'].es).toBe(6);
+      expect(schedule.activities['3'].es).toBe(5);
       expect(schedule.activities['3'].ef).toBe(9);
       expect(schedule.criticalActivityIds).toEqual(['1', '2', '3']);
     });
@@ -449,17 +449,17 @@ describe('Generalized Precedence Scheduling Engine (PDM) Tests', () => {
       const schedule = calculateSchedule(activities);
 
       expect(schedule.projectDuration).toBe(7);
-      expect(schedule.activities['A'].es).toBe(1);
+      expect(schedule.activities['A'].es).toBe(0);
       expect(schedule.activities['A'].ef).toBe(3);
 
-      // Milestone occurs at end of day 3 / boundary
+      // Milestone occurs at time 3
       expect(schedule.activities['M1'].duration).toBe(0);
       expect(schedule.activities['M1'].isMilestone).toBe(true);
       expect(schedule.activities['M1'].es).toBe(3);
       expect(schedule.activities['M1'].ef).toBe(3);
 
-      // B starts on day 4
-      expect(schedule.activities['B'].es).toBe(4);
+      // B starts at 3
+      expect(schedule.activities['B'].es).toBe(3);
       expect(schedule.activities['B'].ef).toBe(7);
       expect(schedule.criticalActivityIds).toEqual(['A', 'M1', 'B']);
     });

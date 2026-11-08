@@ -373,7 +373,7 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
         explanation: 'Day 14 would introduce an unnecessary gap.',
       },
     ],
-    academicNote: 'Forward pass formula for inclusive day counting: ES = max(predecessor EF) + 1; EF = ES + Duration - 1.',
+    academicNote: 'Forward pass formula: ES = max(predecessor EF) with root ES = 0; EF = ES + Duration.',
   },
   {
     id: 7,

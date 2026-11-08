@@ -420,17 +420,15 @@ export function findCriticalPaths(
 
   for (const [sId, succAct] of criticalMap.entries()) {
     const relations = normalizeActivityDependencies(succAct);
-    const dS = Math.max(0, typeof succAct.duration === 'number' ? succAct.duration : 0);
-    const tSs = dS > 0 ? succAct.es - 1 : (succAct.es === 1 ? 0 : succAct.es);
-    const tFs = tSs + dS;
+    const tSs = succAct.es;
+    const tFs = succAct.ef;
 
     for (const rel of relations) {
       const predAct = criticalMap.get(rel.predecessorId);
       if (!predAct) continue;
 
-      const dP = Math.max(0, typeof predAct.duration === 'number' ? predAct.duration : 0);
-      const tSp = dP > 0 ? predAct.es - 1 : (predAct.es === 1 ? 0 : predAct.es);
-      const tFp = tSp + dP;
+      const tSp = predAct.es;
+      const tFp = predAct.ef;
       const L = rel.lag || 0;
 
       // Check whether this edge is tight (controlling constraint)
@@ -453,12 +451,10 @@ export function findCriticalPaths(
     }
   }
 
-  // Critical start nodes: critical nodes that have no critical predecessors in critAdj, or start at t=0
+  // Critical start nodes: critical nodes that have no critical predecessors in critAdj, or start at ES=0
   const critStarts: string[] = [];
   for (const [id, act] of criticalMap.entries()) {
-    const d = Math.max(0, typeof act.duration === 'number' ? act.duration : 0);
-    const tS = d > 0 ? act.es - 1 : (act.es === 1 ? 0 : act.es);
-    if (tS === 0 || act.predecessors.length === 0) {
+    if (act.es === 0 || act.predecessors.length === 0) {
       critStarts.push(id);
     }
   }
@@ -525,7 +521,7 @@ export function findCriticalPaths(
  * - Positive and negative lag (lead)
  * - Milestones (zero duration events)
  * - Multiple parallel critical paths and float buffers
- * - Inclusive 1-based workday numbering convention: EF = ES + Duration - 1
+ * - 0-based workday numbering convention: First ES = 0, EF = ES + Duration
  */
 export function calculateSchedule(activities: Activity[]): ScheduleCalculationResult {
   // 1. Validation check
@@ -708,27 +704,12 @@ export function calculateSchedule(activities: Activity[]): ScheduleCalculationRe
     const tS_late = tStartLate.get(id)!;
     const tF_late = tFinishLate.get(id)!;
 
-    // 1-based inclusive conversion:
-    // For tasks with duration > 0: ES = tS + 1, EF = tF.
-    // For milestones with duration = 0: if tF === 0, day is 1; else day is tF.
-    let es: number;
-    let ef: number;
-    let ls: number;
-    let lf: number;
-
-    if (d > 0) {
-      es = tS + 1;
-      ef = tF;
-      lf = tF_late;
-      ls = tS_late + 1;
-    } else {
-      const milestoneDay = tF === 0 ? 1 : tF;
-      es = milestoneDay;
-      ef = milestoneDay;
-      const milestoneLateDay = tF_late === 0 ? 1 : tF_late;
-      lf = milestoneLateDay;
-      ls = milestoneLateDay;
-    }
+    // 0-based workday numbering conversion:
+    // First ES = 0, EF = ES + Duration
+    const es = tS;
+    const ef = tF;
+    const lf = tF_late;
+    const ls = tS_late;
 
     // Total float: buffer between late schedule and early schedule
     const totalFloat = Math.max(0, tS_late - tS);

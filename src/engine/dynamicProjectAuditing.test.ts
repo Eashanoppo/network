@@ -13,9 +13,9 @@ describe('Auditing Suite: Dynamic Project Topologies & CPM Verification', () => 
       const result = calculateSchedule(activities);
       expect(result.isValid).toBe(true);
       expect(result.projectDuration).toBe(7);
-      expect(result.activities['SINGLE'].es).toBe(1);
+      expect(result.activities['SINGLE'].es).toBe(0);
       expect(result.activities['SINGLE'].ef).toBe(7);
-      expect(result.activities['SINGLE'].ls).toBe(1);
+      expect(result.activities['SINGLE'].ls).toBe(0);
       expect(result.activities['SINGLE'].lf).toBe(7);
       expect(result.activities['SINGLE'].totalFloat).toBe(0);
       expect(result.activities['SINGLE'].freeFloat).toBe(0);
@@ -30,8 +30,8 @@ describe('Auditing Suite: Dynamic Project Topologies & CPM Verification', () => 
       const result = calculateSchedule(activities);
       expect(result.isValid).toBe(true);
       expect(result.projectDuration).toBe(0);
-      expect(result.activities['M0'].es).toBe(1);
-      expect(result.activities['M0'].ef).toBe(1);
+      expect(result.activities['M0'].es).toBe(0);
+      expect(result.activities['M0'].ef).toBe(0);
       expect(result.activities['M0'].totalFloat).toBe(0);
       expect(result.activities['M0'].isCritical).toBe(true);
     });
@@ -47,11 +47,11 @@ describe('Auditing Suite: Dynamic Project Topologies & CPM Verification', () => 
       ];
       const result = calculateSchedule(activities);
       expect(result.projectDuration).toBe(12); // 3 + 4 + 5
-      expect(result.activities['A'].es).toBe(1);
+      expect(result.activities['A'].es).toBe(0);
       expect(result.activities['A'].ef).toBe(3);
-      expect(result.activities['B'].es).toBe(4);
+      expect(result.activities['B'].es).toBe(3);
       expect(result.activities['B'].ef).toBe(7);
-      expect(result.activities['C'].es).toBe(8);
+      expect(result.activities['C'].es).toBe(7);
       expect(result.activities['C'].ef).toBe(12);
       expect(result.criticalPaths[0].activityIds).toEqual(['A', 'B', 'C']);
     });
@@ -197,8 +197,8 @@ describe('Auditing Suite: Dynamic Project Topologies & CPM Verification', () => 
 
       // Controlling track 2: 18 workdays + 0 milestone + 5 + 4 + 2 = 29 workdays total!
       expect(res.projectDuration).toBe(29);
-      expect(res.activities['T17'].es).toBe(18); // Milestone day (at conclusion of Day 18)
-      expect(res.activities['T18'].es).toBe(19);
+      expect(res.activities['T17'].es).toBe(18); // Milestone day
+      expect(res.activities['T18'].es).toBe(18);
       expect(res.activities['T20'].ef).toBe(29);
 
       // Track 1 should have float: 18 - 14 = 4 days
@@ -276,19 +276,19 @@ describe('Auditing Suite: Dynamic Project Topologies & CPM Verification', () => 
 
       const res = calculateSchedule(activities);
       expect(res.isValid).toBe(true);
-      expect(res.activities['A'].es).toBe(1);
+      expect(res.activities['A'].es).toBe(0);
       expect(res.activities['A'].ef).toBe(6);
 
-      // B starts on Day 3, duration 4 -> Day 3..6 (EF = 6)
-      expect(res.activities['B'].es).toBe(3);
+      // B starts on Day 2 (SS lag 2 from tS=0), duration 4 -> EF = 6
+      expect(res.activities['B'].es).toBe(2);
       expect(res.activities['B'].ef).toBe(6);
 
-      // C finishes on Day 7, duration 3 -> Day 5..7 (ES = 5, EF = 7)
-      expect(res.activities['C'].es).toBe(5);
+      // C finishes on Day 7, duration 3 -> ES = 4, EF = 7
+      expect(res.activities['C'].es).toBe(4);
       expect(res.activities['C'].ef).toBe(7);
 
-      // D depends on B (EF=6) and C (EF=7). Max required start is Day 8.
-      expect(res.activities['D'].es).toBe(8);
+      // D depends on B (EF=6) and C (EF=7). Max required start is Day 7.
+      expect(res.activities['D'].es).toBe(7);
       expect(res.activities['D'].ef).toBe(9);
       expect(res.projectDuration).toBe(9);
     });
@@ -296,7 +296,7 @@ describe('Auditing Suite: Dynamic Project Topologies & CPM Verification', () => 
     it('correctly handles negative lag (lead) as fast-tracking concurrency', () => {
       const activities: Activity[] = [
         { id: 'A', name: 'Design Phase', duration: 6, predecessors: [] },
-        // B has FS with -2 lag (2 days of lead / overlap) -> starts on EF_A + 1 - 2 = Day 5
+        // B has FS with -2 lag (2 days of lead / overlap) -> starts on EF_A - 2 = Day 4
         {
           id: 'B',
           name: 'Prototyping Phase',
@@ -307,10 +307,10 @@ describe('Auditing Suite: Dynamic Project Topologies & CPM Verification', () => 
       ];
 
       const res = calculateSchedule(activities);
-      expect(res.activities['A'].es).toBe(1);
+      expect(res.activities['A'].es).toBe(0);
       expect(res.activities['A'].ef).toBe(6);
-      expect(res.activities['B'].es).toBe(5); // Starts 2 days before A finishes!
-      expect(res.activities['B'].ef).toBe(8); // Day 5..8 = 4 days
+      expect(res.activities['B'].es).toBe(4); // Starts 2 days before A finishes!
+      expect(res.activities['B'].ef).toBe(8); // Day 4..8 = 4 days
       expect(res.projectDuration).toBe(8);
     });
   });

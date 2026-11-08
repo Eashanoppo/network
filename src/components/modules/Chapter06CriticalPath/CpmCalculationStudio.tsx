@@ -56,24 +56,24 @@ export const CpmCalculationStudio: React.FC = () => {
       if (act.predecessors.length === 0) {
         return {
           title: `Earliest Start (ES) for Activity ${act.id}`,
-          formula: `ES = 1 (Root activity starting project on morning of Day 1)`,
-          explanation: `Since ${act.id} has no predecessors, work begins immediately on the morning of Day 1.`,
+          formula: `ES = 0 (Root activity starting project at Day 0)`,
+          explanation: `Since ${act.id} has no predecessors, work begins at the very start of the project (Day 0).`,
         };
       }
       const predEfs = act.predecessors.map(p => `${p}(EF=${schedule.activities[p]?.ef})`);
       const maxEf = Math.max(...act.predecessors.map(p => schedule.activities[p]?.ef || 0));
       return {
         title: `Earliest Start (ES) for Activity ${act.id}`,
-        formula: `ES = max(Predecessor EFs) + 1 = max(${predEfs.join(', ')}) + 1 = ${maxEf} + 1 = Day ${act.es}`,
-        explanation: `${act.id} cannot begin until all immediate predecessors finish. The latest-finishing predecessor completes on Day ${maxEf}, so ${act.id} starts on Day ${act.es}.`,
+        formula: `ES = max(Predecessor EFs) = max(${predEfs.join(', ')}) = Day ${act.es}`,
+        explanation: `${act.id} cannot begin until all immediate predecessors finish. The latest-finishing predecessor completes at Day ${maxEf}, so ${act.id} starts on Day ${act.es}.`,
       };
     }
 
     if (field === 'ef') {
       return {
         title: `Earliest Finish (EF) for Activity ${act.id}`,
-        formula: `EF = ES + Duration - 1 = ${act.es} + ${act.duration} - 1 = Day ${act.ef}`,
-        explanation: `Under inclusive workday numbering, working ${act.duration} continuous workdays starting Day ${act.es} completes at the end of Day ${act.ef}.`,
+        formula: `EF = ES + Duration = ${act.es} + ${act.duration} = Day ${act.ef}`,
+        explanation: `Working ${act.duration} continuous workdays starting at Day ${act.es} completes at Day ${act.ef}.`,
       };
     }
 
@@ -89,15 +89,15 @@ export const CpmCalculationStudio: React.FC = () => {
       const minLs = Math.min(...act.successors.map(s => schedule.activities[s]?.ls || 0));
       return {
         title: `Latest Finish (LF) for Activity ${act.id}`,
-        formula: `LF = min(Successor LSs) - 1 = min(${succLss.join(', ')}) - 1 = ${minLs} - 1 = Day ${act.lf}`,
-        explanation: `${act.id} must finish before the earliest necessary start date of any downstream successor task (min LS = Day ${minLs}).`,
+        formula: `LF = min(Successor LSs) = min(${succLss.join(', ')}) = Day ${act.lf}`,
+        explanation: `${act.id} must finish before or at the earliest necessary start date of any downstream successor task (min LS = Day ${minLs}).`,
       };
     }
 
     if (field === 'ls') {
       return {
         title: `Latest Start (LS) for Activity ${act.id}`,
-        formula: `LS = LF - Duration + 1 = ${act.lf} - ${act.duration} + 1 = Day ${act.ls}`,
+        formula: `LS = LF - Duration = ${act.lf} - ${act.duration} = Day ${act.ls}`,
         explanation: `To finish on or before Day ${act.lf}, an activity requiring ${act.duration} workdays must start no later than Day ${act.ls}.`,
       };
     }
@@ -133,7 +133,7 @@ export const CpmCalculationStudio: React.FC = () => {
           step: 1,
           title: 'Step 1: Forward Pass (Earliest Dates: ES & EF)',
           direction: 'Left-to-Right (Start to End)',
-          rule: 'ES = max(Predecessor EFs) + 1 | EF = ES + Duration - 1',
+          rule: 'ES = max(Predecessor EFs) (Root ES = 0) | EF = ES + Duration',
           description: 'No activities in this project yet. Add activities to run CPM calculations.',
           focusActivity: '',
         },
@@ -147,15 +147,15 @@ export const CpmCalculationStudio: React.FC = () => {
     const multiPredAct = list.find(a => a.predecessors.length > 1) || list[Math.min(1, list.length - 1)];
 
     // Step 1: Forward pass explanation
-    const rootNames = roots.map(r => `${r.id} (${r.name}, ${r.duration}d, Day 1..${r.ef})`).join(', ');
+    const rootNames = roots.map(r => `${r.id} (${r.name}, ${r.duration}d, Day 0..${r.ef})`).join(', ');
     const mergeDesc = multiPredAct && multiPredAct.predecessors.length > 1
-      ? ` Activity ${multiPredAct.id} (${multiPredAct.name}) has multiple predecessors [${multiPredAct.predecessors.join(', ')}], so its ES is constrained by max(${multiPredAct.predecessors.map(p => `EF_${p}`).join(', ')}) + 1 = Day ${multiPredAct.es}.`
+      ? ` Activity ${multiPredAct.id} (${multiPredAct.name}) has multiple predecessors [${multiPredAct.predecessors.join(', ')}], so its ES is constrained by max(${multiPredAct.predecessors.map(p => `EF_${p}`).join(', ')}) = Day ${multiPredAct.es}.`
       : '';
-    const step1Desc = `In ${activeProject.name}, the forward pass begins at root activit${roots.length > 1 ? 'ies' : 'y'} [${rootNames}]. Advancing left-to-right through dependencies, each early finish is EF = ES + D - 1.${mergeDesc} The final project completion reached is Day ${schedule.projectDuration}.`;
+    const step1Desc = `In ${activeProject.name}, the forward pass begins at root activit${roots.length > 1 ? 'ies' : 'y'} [${rootNames}] with initial ES = 0. Advancing left-to-right through dependencies, each early finish is EF = ES + Duration.${mergeDesc} The final project completion reached is Day ${schedule.projectDuration}.`;
 
     // Step 2: Backward pass explanation
     const termNames = terminals.map(t => `${t.id} (LF = Day ${t.lf})`).join(', ');
-    const step2Desc = `Anchoring the terminal activit${terminals.length > 1 ? 'ies' : 'y'} [${termNames}] at total project duration (Day ${schedule.projectDuration}), we work right-to-left. For each predecessor, LF = min(Successor LSs) - 1, and LS = LF - D + 1. This establishes the absolute latest date each task can begin without delaying the overall deadline.`;
+    const step2Desc = `Anchoring the terminal activit${terminals.length > 1 ? 'ies' : 'y'} [${termNames}] at total project duration (Day ${schedule.projectDuration}), we work right-to-left. For each predecessor, LF = min(Successor LSs), and LS = LF - Duration. This establishes the absolute latest date each task can begin without delaying the overall deadline.`;
 
     // Step 3: Total Float explanation
     const floatEx = nonCritActs[0]
@@ -172,7 +172,7 @@ export const CpmCalculationStudio: React.FC = () => {
         step: 1,
         title: 'Step 1: Forward Pass (Earliest Dates: ES & EF)',
         direction: 'Left-to-Right (Start to End)',
-        rule: 'ES = max(Predecessor EFs) + 1 | EF = ES + Duration - 1',
+        rule: 'ES = max(Predecessor EFs) | EF = ES + Duration',
         description: step1Desc,
         focusActivity: multiPredAct?.id || roots[0]?.id || '',
       },
@@ -180,7 +180,7 @@ export const CpmCalculationStudio: React.FC = () => {
         step: 2,
         title: 'Step 2: Backward Pass (Latest Dates: LF & LS)',
         direction: 'Right-to-Left (End to Start)',
-        rule: 'LF = min(Successor LSs) - 1 | LS = LF - Duration + 1',
+        rule: 'LF = min(Successor LSs) | LS = LF - Duration',
         description: step2Desc,
         focusActivity: nonCritActs[0]?.id || terminals[0]?.id || '',
       },
@@ -218,8 +218,8 @@ export const CpmCalculationStudio: React.FC = () => {
           timeAllocation="5 minutes"
           keyTakeaway="The Critical Path Method is deterministic algebra. The forward pass calculates earliest dates, the backward pass calculates latest dates, and their difference reveals float."
           talkingPoints={[
-            'Explain the forward pass: start at Day 1, calculate ES and EF: EF = ES + Duration - 1.',
-            'Explain the backward pass: start at project end, calculate LF and LS: LS = LF - Duration + 1.',
+            'Explain the forward pass: start at Day 0 (first ES = 0), calculate ES and EF: EF = ES + Duration.',
+            'Explain the backward pass: start at project end, calculate LF and LS: LS = LF - Duration.',
             'Demonstrate how Total Float = LS - ES. Show why critical tasks have Float = 0.',
             'Trigger Scenario 1: Increase Activity C to 4 days. Show that absorbing 1 day of float leaves duration at 18 days, but creates TWO critical paths!',
             'Trigger Scenario 2: Increase Activity C to 5 days. Watch duration increase to 19 days. Emphasize why non-critical tasks become controlling when float is exceeded.',
@@ -239,10 +239,10 @@ export const CpmCalculationStudio: React.FC = () => {
               Forward Pass (Early Dates)
             </span>
             <div className="font-mono text-xs font-bold text-ink-primary my-1">
-              EF = ES + Duration - 1
+              EF = ES + Duration
             </div>
             <p className="text-[11px] text-ink-secondary">
-              Successor ES = max(Predecessor EFs) + 1
+              Successor ES = max(Predecessor EFs) (Root ES = 0)
             </p>
           </div>
 
@@ -251,10 +251,10 @@ export const CpmCalculationStudio: React.FC = () => {
               Backward Pass (Late Dates)
             </span>
             <div className="font-mono text-xs font-bold text-ink-primary my-1">
-              LS = LF - Duration + 1
+              LS = LF - Duration
             </div>
             <p className="text-[11px] text-ink-secondary">
-              Predecessor LF = min(Successor LSs) - 1
+              Predecessor LF = min(Successor LSs)
             </p>
           </div>
 

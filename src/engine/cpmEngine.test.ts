@@ -19,51 +19,51 @@ describe('CPM Calculation Engine Verification', () => {
     const result = calculateSchedule(BASELINE_ACTIVITIES);
     const { activities } = result;
 
-    // A: ES 1, EF 3, LS 1, LF 3, Float 0
-    expect(activities.A.es).toBe(1);
+    // A: ES 0, EF 3, LS 0, LF 3, Float 0
+    expect(activities.A.es).toBe(0);
     expect(activities.A.ef).toBe(3);
-    expect(activities.A.ls).toBe(1);
+    expect(activities.A.ls).toBe(0);
     expect(activities.A.lf).toBe(3);
     expect(activities.A.totalFloat).toBe(0);
     expect(activities.A.isCritical).toBe(true);
 
-    // B: ES 4, EF 7, LS 4, LF 7, Float 0
-    expect(activities.B.es).toBe(4);
+    // B: ES 3, EF 7, LS 3, LF 7, Float 0
+    expect(activities.B.es).toBe(3);
     expect(activities.B.ef).toBe(7);
-    expect(activities.B.ls).toBe(4);
+    expect(activities.B.ls).toBe(3);
     expect(activities.B.lf).toBe(7);
     expect(activities.B.totalFloat).toBe(0);
     expect(activities.B.isCritical).toBe(true);
 
-    // C: ES 4, EF 6, LS 5, LF 7, Float 1
-    expect(activities.C.es).toBe(4);
+    // C: ES 3, EF 6, LS 4, LF 7, Float 1
+    expect(activities.C.es).toBe(3);
     expect(activities.C.ef).toBe(6);
-    expect(activities.C.ls).toBe(5);
+    expect(activities.C.ls).toBe(4);
     expect(activities.C.lf).toBe(7);
     expect(activities.C.totalFloat).toBe(1);
-    expect(activities.C.freeFloat).toBe(1); // D starts on day 8, 8 - 6 - 1 = 1
+    expect(activities.C.freeFloat).toBe(1); // D starts on day 7, 7 - 6 = 1
     expect(activities.C.isCritical).toBe(false);
 
-    // D: ES 8, EF 13, LS 8, LF 13, Float 0
-    expect(activities.D.es).toBe(8);
+    // D: ES 7, EF 13, LS 7, LF 13, Float 0
+    expect(activities.D.es).toBe(7);
     expect(activities.D.ef).toBe(13);
-    expect(activities.D.ls).toBe(8);
+    expect(activities.D.ls).toBe(7);
     expect(activities.D.lf).toBe(13);
     expect(activities.D.totalFloat).toBe(0);
     expect(activities.D.isCritical).toBe(true);
 
-    // E: ES 14, EF 16, LS 14, LF 16, Float 0
-    expect(activities.E.es).toBe(14);
+    // E: ES 13, EF 16, LS 13, LF 16, Float 0
+    expect(activities.E.es).toBe(13);
     expect(activities.E.ef).toBe(16);
-    expect(activities.E.ls).toBe(14);
+    expect(activities.E.ls).toBe(13);
     expect(activities.E.lf).toBe(16);
     expect(activities.E.totalFloat).toBe(0);
     expect(activities.E.isCritical).toBe(true);
 
-    // F: ES 17, EF 18, LS 17, LF 18, Float 0
-    expect(activities.F.es).toBe(17);
+    // F: ES 16, EF 18, LS 16, LF 18, Float 0
+    expect(activities.F.es).toBe(16);
     expect(activities.F.ef).toBe(18);
-    expect(activities.F.ls).toBe(17);
+    expect(activities.F.ls).toBe(16);
     expect(activities.F.lf).toBe(18);
     expect(activities.F.totalFloat).toBe(0);
     expect(activities.F.isCritical).toBe(true);

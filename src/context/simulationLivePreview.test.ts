@@ -80,25 +80,25 @@ describe('Unified Simulation Preview & Multi-Tier Schedule Verification (Prompt 
     const previewSched = scenario.schedule;
 
     // 1. Network Diagram Node Metrics Agreement
-    // Node C: Duration=5, ES=4, EF=8, LS=4, LF=8, Float=0
+    // Node C: Duration=5, ES=3, EF=8, LS=3, LF=8, Float=0
     expect(previewSched.activities['C'].duration).toBe(5);
-    expect(previewSched.activities['C'].es).toBe(4);
+    expect(previewSched.activities['C'].es).toBe(3);
     expect(previewSched.activities['C'].ef).toBe(8);
-    expect(previewSched.activities['C'].ls).toBe(4);
+    expect(previewSched.activities['C'].ls).toBe(3);
     expect(previewSched.activities['C'].lf).toBe(8);
     expect(previewSched.activities['C'].totalFloat).toBe(0);
     expect(previewSched.activities['C'].isCritical).toBe(true);
 
-    // Node D: Pred B (EF 7) & C (EF 8) -> ES = max(7, 8) + 1 = 9
-    expect(previewSched.activities['D'].es).toBe(9);
-    expect(previewSched.activities['D'].ef).toBe(14); // 9 + 6 - 1 = 14
+    // Node D: Pred B (EF 7) & C (EF 8) -> ES = max(7, 8) = 8
+    expect(previewSched.activities['D'].es).toBe(8);
+    expect(previewSched.activities['D'].ef).toBe(14); // 8 + 6 = 14
 
-    // Node E: ES = 15, EF = 17
-    expect(previewSched.activities['E'].es).toBe(15);
+    // Node E: ES = 14, EF = 17
+    expect(previewSched.activities['E'].es).toBe(14);
     expect(previewSched.activities['E'].ef).toBe(17);
 
-    // Node F: ES = 18, EF = 19
-    expect(previewSched.activities['F'].es).toBe(18);
+    // Node F: ES = 17, EF = 19
+    expect(previewSched.activities['F'].es).toBe(17);
     expect(previewSched.activities['F'].ef).toBe(19);
 
     // 2. CPM Table Agreement
@@ -120,7 +120,7 @@ describe('Unified Simulation Preview & Multi-Tier Schedule Verification (Prompt 
     expect(ganttTimelineMaxDays).toBe(23);
 
     // Activity bar width calculation
-    const cWidthPercent = ((previewSched.activities['C'].ef - previewSched.activities['C'].es + 1) / ganttTimelineMaxDays) * 100;
+    const cWidthPercent = ((previewSched.activities['C'].ef - previewSched.activities['C'].es) / ganttTimelineMaxDays) * 100;
     expect(cWidthPercent).toBeCloseTo((5 / 23) * 100, 2);
 
     // Project duration metric matches across all modules
@@ -248,8 +248,8 @@ describe('Unified Simulation Preview & Multi-Tier Schedule Verification (Prompt 
     ]);
 
     expect(simDep.isValid).toBe(true);
-    // A starts Day 1 (tS=0). B with SS lag 2 starts Day 3 (tS=2, ES=3), duration 4 -> EF=6 (instead of Day 7!)
-    expect(simDep.schedule.activities['B'].es).toBe(3);
+    // A starts Day 0 (tS=0). B with SS lag 2 starts Day 2 (tS=2, ES=2), duration 4 -> EF=6 (instead of Day 7!)
+    expect(simDep.schedule.activities['B'].es).toBe(2);
     expect(simDep.schedule.activities['B'].ef).toBe(6);
   });
 });

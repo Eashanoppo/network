@@ -1030,7 +1030,7 @@ export const NetworkDiagramExplorer: React.FC = () => {
                       );
                     })}
                     <p className="text-[11px] text-ink-secondary font-mono mt-2">
-                      ES Calculation: max({selectedAct.predecessors.map(p => `EF_${p}`).join(', ')}) + 1 = Day {selectedAct.es}
+                      ES Calculation: max({selectedAct.predecessors.map(p => `EF_${p}`).join(', ')}) = Day {selectedAct.es}
                     </p>
                   </div>
                 )}

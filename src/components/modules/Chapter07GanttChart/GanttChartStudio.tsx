@@ -51,8 +51,8 @@ export const GanttChartStudio: React.FC = () => {
 
   // Helper to calculate bar styling (percentage based)
   const getBarStyle = (es: number, ef: number) => {
-    const leftPercent = ((es - 1) / timelineMaxDays) * 100;
-    const durationDays = Math.max(1, ef - es + 1);
+    const leftPercent = (es / timelineMaxDays) * 100;
+    const durationDays = Math.max(0.05, ef - es);
     const widthPercent = (durationDays / timelineMaxDays) * 100;
     return {
       left: `${leftPercent}%`,
@@ -96,7 +96,7 @@ export const GanttChartStudio: React.FC = () => {
         const predAct = schedule.activities[predId];
         if (predIndex !== -1 && predAct) {
           const fromXPercent = (predAct.ef / timelineMaxDays) * 100;
-          const toXPercent = ((act.es - 1) / timelineMaxDays) * 100;
+          const toXPercent = (act.es / timelineMaxDays) * 100;
           const isCritical = act.isCritical && predAct.isCritical && act.totalFloat === 0;
 
           links.push({
@@ -445,7 +445,7 @@ export const GanttChartStudio: React.FC = () => {
                                   ? 'bg-critical ring-2 ring-critical-border'
                                   : 'bg-brand ring-2 ring-brand-border'
                               } ${isSelected ? 'scale-125' : ''}`}
-                              style={{ left: `${((act.es - 1) / timelineMaxDays) * 100}%` }}
+                              style={{ left: `${(act.es / timelineMaxDays) * 100}%` }}
                               title={`Milestone: ${act.name} (Day ${act.es})`}
                             >
                               <Flag className="w-2.5 h-2.5 text-white -rotate-45" />

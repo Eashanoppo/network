@@ -27,8 +27,8 @@ describe('Prompt 4 - Integrated Platform & Module Verification', () => {
         { predecessorId: 'C', type: 'FS', lag: 0 },
       ]);
       expect(sim.isValid).toBe(true);
-      // B finishes on Day 7, so with lag 2, D starts on 7 + 1 + 2 = Day 10 (instead of Day 8)
-      expect(sim.schedule.activities['D'].es).toBe(10);
+      // B finishes on Day 7, so with lag 2, D starts on 7 + 2 = Day 9 (instead of Day 7)
+      expect(sim.schedule.activities['D'].es).toBe(9);
       expect(sim.schedule.projectDuration).toBe(20);
     });
   });
