@@ -3,7 +3,7 @@ import { useSchedule } from '../../context/ScheduleContext';
 import { AlertTriangle, Info, RotateCcw, AlertCircle, X } from 'lucide-react';
 
 export const LiveDelayAlert: React.FC = () => {
-  const { delayImpact, isModified, resetToBaseline, schedule, scheduleError, clearScheduleError } =
+  const { delayImpact, isModified, resetToBaseline, schedule, baselineSchedule, scheduleError, clearScheduleError } =
     useSchedule();
 
   if (scheduleError) {
@@ -80,7 +80,7 @@ export const LiveDelayAlert: React.FC = () => {
           className="shrink-0 px-3 py-1.5 rounded-md text-xs font-semibold bg-white border border-border hover:bg-warm text-ink-primary transition-colors flex items-center space-x-1.5 shadow-xs"
         >
           <RotateCcw className="w-3.5 h-3.5 text-ink-secondary" />
-          <span>Reset to Baseline (18d)</span>
+          <span>Reset to Baseline ({baselineSchedule.projectDuration}d)</span>
         </button>
       </div>
     </div>

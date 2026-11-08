@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSchedule } from '../../context/ScheduleContext';
 import { CHAPTERS_DATA } from '../../data/educationalContent';
+import { ProjectSwitcher } from '../project/ProjectSwitcher';
 import {
   RotateCcw,
   Clock,
@@ -31,6 +32,10 @@ type DropdownType = 'curriculum' | 'studios' | null;
 export const Header: React.FC = () => {
   const {
     schedule,
+    baselineSchedule,
+    viewMode,
+    setViewMode,
+    activeSimulation,
     isModified,
     resetToBaseline,
     presenterMode,
@@ -146,104 +151,44 @@ export const Header: React.FC = () => {
     }
   }, [goToChapter]);
 
-  // Curriculum columns mapping
-  const curriculumColumns = [
-    {
-      groupTitle: 'Foundations',
-      presenter: 'Presenter 1',
-      duration: '7 min',
-      chapters: [
-        {
-          num: 1,
-          id: 'chapter-01',
-          title: 'Overview & WBS Scope',
-          subtitle: 'University case & baseline deliverables',
-          badge: 'Scope',
-        },
-        {
-          num: 2,
-          id: 'chapter-02',
-          title: 'Schedule Management',
-          subtitle: 'Triple constraint & scheduling rationale',
-          badge: 'Core',
-        },
-        {
-          num: 3,
-          id: 'chapter-03',
-          title: 'Six PMBOK Processes',
-          subtitle: 'Plan, Define, Sequence, Estimate, Develop, Control',
-          badge: 'Workflow',
-        },
-      ],
-    },
-    {
-      groupTitle: 'Precedence & CPM',
-      presenter: 'Presenters 2–4',
-      duration: '14 min',
-      chapters: [
-        {
-          num: 4,
-          id: 'chapter-04',
-          title: 'Dependencies & PDM',
-          subtitle: 'Mandatory vs Discretionary & FS, SS, FF, SF',
-          badge: 'Logic',
-        },
-        {
-          num: 5,
-          id: 'chapter-05',
-          title: 'Network Diagram (AON)',
-          subtitle: 'Vector node topology & parallel paths',
-          badge: 'Topology',
-        },
-        {
-          num: 6,
-          id: 'chapter-06',
-          title: 'Critical Path Studio',
-          subtitle: 'Forward/backward pass & slack calculation',
-          badge: 'CPM Engine',
-        },
-      ],
-    },
-    {
-      groupTitle: 'Execution & Risk',
-      presenter: 'Presenter 5 & Team',
-      duration: '11 min',
-      chapters: [
-        {
-          num: 7,
-          id: 'chapter-07',
-          title: 'Gantt Chart Studio',
-          subtitle: 'Time-scaled dual-bar calendar schedule',
-          badge: 'Timeline',
-        },
-        {
-          num: 8,
-          id: 'chapter-08',
-          title: 'PERT Estimator Studio',
-          subtitle: 'Three-point beta distribution (O+4M+P)/6',
-          badge: 'Risk Analysis',
-        },
-        {
-          num: 9,
-          id: 'chapter-09',
-          title: 'Knowledge Check Quiz',
-          subtitle: 'Interactive quiz & practical scenario test',
-          badge: 'Assessment',
-        },
-      ],
-    },
+  // Clean single-column dropdown items matching Bland.ai style
+  const curriculumItems = [
+    { num: 1, id: 'chapter-01', title: '01 Overview & WBS Scope' },
+    { num: 2, id: 'chapter-02', title: '02 Schedule Management' },
+    { num: 3, id: 'chapter-03', title: '03 Six PMBOK Processes' },
+    { num: 4, id: 'chapter-04', title: '04 Dependencies & PDM' },
+    { num: 5, id: 'chapter-05', title: '05 Network Diagram (AON)' },
+    { num: 6, id: 'chapter-06', title: '06 Critical Path Studio' },
+    { num: 7, id: 'chapter-07', title: '07 Gantt Chart Studio' },
+    { num: 8, id: 'chapter-08', title: '08 PERT Estimator' },
+    { num: 9, id: 'chapter-09', title: '09 Knowledge Check Quiz' },
   ];
 
-  // Interactive Studios items
+  const studioMenuItems = [
+    { id: 'section-activity-studio', chapterNum: 1, name: 'Activity Studio' },
+    { id: 'chapter-05', chapterNum: 5, name: 'AON Network Canvas' },
+    { id: 'chapter-06', chapterNum: 6, name: 'Critical Path Studio' },
+    { id: 'chapter-07', chapterNum: 7, name: 'Gantt Chart Studio' },
+    { id: 'section-simulations', chapterNum: 6, name: 'Simulation Lab' },
+    { id: 'chapter-08', chapterNum: 8, name: 'PERT Estimator' },
+    { id: 'chapter-09', chapterNum: 9, name: 'Mastery Quiz' },
+  ];
+
+  // Interactive Studios items for mobile drawer
   const studioItems = [
+    {
+      id: 'section-activity-studio',
+      chapterNum: 1,
+      icon: Layers,
+      name: 'Activity Management Studio',
+      tag: 'Multi-Project Editor',
+    },
     {
       id: 'chapter-05',
       chapterNum: 5,
       icon: Network,
       name: 'AON Network Canvas',
       tag: 'Vector Graph',
-      description: 'Interactive zoom/pan graph showing activity nodes, dependencies, and critical path glow.',
-      highlight: true,
     },
     {
       id: 'chapter-06',
@@ -251,8 +196,6 @@ export const Header: React.FC = () => {
       icon: Calculator,
       name: 'Critical Path Studio',
       tag: 'Calculation Table',
-      description: 'Live table showing ES, EF, LS, LF, Total Float, Free Float with inline duration editing.',
-      highlight: false,
     },
     {
       id: 'chapter-07',
@@ -260,8 +203,6 @@ export const Header: React.FC = () => {
       icon: BarChart3,
       name: 'Gantt Chart Studio',
       tag: 'Dual Timeline',
-      description: 'Time-scaled calendar schedule with early vs. late bars and concurrency visualization.',
-      highlight: false,
     },
     {
       id: 'section-simulations',
@@ -269,8 +210,6 @@ export const Header: React.FC = () => {
       icon: Sliders,
       name: 'Delay Simulation Lab',
       tag: 'Scenario Stress Test',
-      description: 'One-click scenarios testing Activity C delays (dual critical paths at 4d, path shift at 5d).',
-      highlight: true,
     },
     {
       id: 'chapter-08',
@@ -278,8 +217,6 @@ export const Header: React.FC = () => {
       icon: TrendingUp,
       name: 'PERT Beta Estimator',
       tag: 'Three-Point Model',
-      description: 'Probabilistic duration estimates with standard deviation, applying updates directly to schedule.',
-      highlight: false,
     },
     {
       id: 'chapter-09',
@@ -287,8 +224,6 @@ export const Header: React.FC = () => {
       icon: Sparkles,
       name: 'Mastery Exam & Challenge',
       tag: 'Interactive Quiz',
-      description: 'Self-paced 5-question exam with instantaneous feedback and scenario challenge review.',
-      highlight: false,
     },
   ];
 
@@ -307,35 +242,31 @@ export const Header: React.FC = () => {
         />
       </div>
 
+      {/* Desktop Dropdown Dismiss Scrim */}
+      {activeDropdown && (
+        <div
+          className="fixed inset-0 z-40 bg-black/5 backdrop-blur-[1px] hidden lg:block"
+          onClick={() => setActiveDropdown(null)}
+          aria-hidden="true"
+        />
+      )}
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo & Identity */}
+          {/* Logo & Identity (Bland.ai clean brand style) */}
           <div
-            className="flex items-center space-x-3 cursor-pointer group select-none"
+            className="flex items-center space-x-2.5 cursor-pointer select-none"
             onClick={() => scrollTo('chapter-01', 1)}
           >
-            <div className="w-8 h-8 rounded-lg bg-ink-primary text-white flex items-center justify-center font-bold text-xs tracking-tight transition-all duration-200 group-hover:scale-105 group-hover:shadow-xs">
-              <span className="font-mono">PM</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-brand ml-0.5 animate-pulse"></span>
+            <div className="w-7 h-7 rounded bg-black text-white flex items-center justify-center font-bold text-xs tracking-tight">
+              <span>PM</span>
             </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <span className="font-bold text-ink-primary tracking-tight text-xs sm:text-base group-hover:text-brand transition-colors">
-                  <span className="xs:hidden">PM Schedule</span>
-                  <span className="hidden xs:inline sm:hidden">Project Schedule</span>
-                  <span className="hidden sm:inline">Project Schedule Management</span>
-                </span>
-                <span className="hidden xl:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-warm text-ink-secondary border border-border">
-                  Presentation Suite
-                </span>
-              </div>
-              <p className="text-[11px] text-ink-muted hidden sm:block">
-                Network Diagrams, CPM &amp; Gantt Charts
-              </p>
-            </div>
+            <span className="font-bold text-black tracking-tight text-sm sm:text-base">
+              PM Project Schedule
+            </span>
           </div>
 
-          {/* Desktop Navigation with Submenus & Premium Motions */}
+          {/* Desktop Navigation (Bland.ai clean style) */}
           <nav
             ref={navContainerRef}
             className="hidden lg:flex items-center space-x-1 text-xs font-medium text-ink-secondary"
@@ -344,7 +275,7 @@ export const Header: React.FC = () => {
             {/* Overview Quick Link */}
             <button
               onClick={() => scrollTo('chapter-01', 1)}
-              className={`px-3 py-1.5 rounded-md transition-all duration-150 ${
+              className={`px-3 py-1.5 rounded-md transition-colors ${
                 activeSectionId === 'chapter-01'
                   ? 'text-ink-primary bg-warm font-semibold'
                   : 'hover:text-ink-primary hover:bg-warm/60'
@@ -353,7 +284,7 @@ export const Header: React.FC = () => {
               Overview
             </button>
 
-            {/* Curriculum Mega-Menu Dropdown */}
+            {/* Curriculum Dropdown - Single column vertical list (Bland.ai style) */}
             <div
               className="relative"
               onMouseEnter={() => handleDropdownHover('curriculum')}
@@ -363,7 +294,7 @@ export const Header: React.FC = () => {
                 onClick={() => toggleDropdown('curriculum')}
                 aria-expanded={activeDropdown === 'curriculum'}
                 aria-haspopup="true"
-                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md transition-all duration-150 ${
+                className={`flex items-center space-x-1 px-3 py-1.5 rounded-md transition-colors ${
                   activeDropdown === 'curriculum' || (activeSectionId.startsWith('chapter-') && activeSectionId !== 'chapter-01')
                     ? 'text-ink-primary bg-warm font-semibold'
                     : 'hover:text-ink-primary hover:bg-warm/60'
@@ -371,98 +302,37 @@ export const Header: React.FC = () => {
               >
                 <span>Curriculum</span>
                 <ChevronDown
-                  className={`w-3.5 h-3.5 transition-transform duration-200 ${
-                    activeDropdown === 'curriculum' ? 'rotate-180 text-brand' : 'text-ink-muted'
+                  className={`w-3.5 h-3.5 transition-transform duration-150 ${
+                    activeDropdown === 'curriculum' ? 'rotate-180 text-ink-primary' : 'text-ink-muted'
                   }`}
                 />
               </button>
 
-              {/* Mega Dropdown Panel */}
               <div
                 style={{ backgroundColor: '#ffffff' }}
-                className={`absolute top-full left-1/2 -translate-x-1/2 mt-2 w-[760px] max-w-[calc(100vw-2rem)] bg-white border border-border rounded-xl shadow-2xl shadow-black/10 p-5 z-50 transition-all duration-200 ease-out transform ${
+                className={`absolute top-full left-0 mt-1.5 w-60 bg-white border border-border rounded-lg shadow-lg py-1.5 z-[60] transition-all duration-150 transform ${
                   activeDropdown === 'curriculum'
-                    ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto'
-                    : 'opacity-0 -translate-y-2 scale-[0.98] pointer-events-none'
+                    ? 'opacity-100 translate-y-0 pointer-events-auto visible'
+                    : 'opacity-0 -translate-y-1 pointer-events-none invisible'
                 }`}
               >
-                {/* 3 Pillars of Presentation */}
-                <div className="grid grid-cols-3 gap-4 pb-4">
-                  {curriculumColumns.map((col, idx) => (
-                    <div
-                      key={col.groupTitle}
-                      className={`space-y-2.5 ${idx < 2 ? 'border-r border-border/70 pr-4' : ''}`}
-                    >
-                      <div className="flex items-center justify-between pb-1.5 border-b border-border/50">
-                        <span className="text-[10px] uppercase font-bold tracking-wider text-ink-muted">
-                          {col.groupTitle}
-                        </span>
-                        <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-warm text-ink-secondary">
-                          {col.duration}
-                        </span>
-                      </div>
-                      <div className="text-[11px] font-semibold text-brand-dark flex items-center space-x-1">
-                        <span>{col.presenter}</span>
-                      </div>
-
-                      <div className="space-y-1">
-                        {col.chapters.map(ch => {
-                          const isActive = activeSectionId === ch.id;
-                          return (
-                            <button
-                              key={ch.id}
-                              onClick={() => scrollTo(ch.id, ch.num)}
-                              className={`w-full text-left p-2 rounded-lg transition-all duration-150 group flex items-start space-x-2 ${
-                                isActive
-                                  ? 'bg-warm border border-border font-medium'
-                                  : 'hover:bg-warm/80 hover:border hover:border-border/50'
-                              }`}
-                            >
-                              <span className="font-mono text-[10px] text-ink-muted pt-0.5 group-hover:text-brand transition-colors">
-                                {ch.num < 10 ? `0${ch.num}` : ch.num}
-                              </span>
-                              <div className="flex-1 min-w-0">
-                                <div className="text-xs font-semibold text-ink-primary truncate group-hover:text-brand transition-colors">
-                                  {ch.title}
-                                </div>
-                                <div className="text-[10px] text-ink-secondary truncate">
-                                  {ch.subtitle}
-                                </div>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Submenu Bottom Ribbon */}
-                <div
-                  style={{ backgroundColor: '#F4F5F0' }}
-                  className="bg-warm border-t border-border -mx-5 -mb-5 px-5 py-3 rounded-b-xl flex items-center justify-between text-xs"
-                >
-                  <div className="flex items-center space-x-2 text-ink-secondary">
-                    <BookOpen className="w-3.5 h-3.5 text-brand" />
-                    <span className="text-[11px]">
-                      5-Speaker Classroom Presentation • PMBOK 7th Ed. Aligned • Dynamic 18d Baseline
-                    </span>
-                  </div>
+                {curriculumItems.map(item => (
                   <button
-                    onClick={() => {
-                      setActiveDropdown(null);
-                      if (!presenterMode) togglePresenterMode();
-                    }}
-                    className="flex items-center space-x-1 text-[11px] font-semibold text-brand hover:text-brand-hover transition-colors"
+                    key={item.id}
+                    onClick={() => scrollTo(item.id, item.num)}
+                    className={`w-full text-left px-3.5 py-1.5 text-xs transition-colors flex items-center justify-between ${
+                      activeSectionId === item.id
+                        ? 'text-ink-primary font-semibold bg-warm'
+                        : 'text-ink-secondary hover:text-ink-primary hover:bg-warm'
+                    }`}
                   >
-                    <span>{presenterMode ? 'Presenter Active' : 'Start Presentation Stage'}</span>
-                    <ArrowRight className="w-3 h-3" />
+                    <span>{item.title}</span>
                   </button>
-                </div>
+                ))}
               </div>
             </div>
 
-            {/* Interactive Studios Dropdown */}
+            {/* Studios Dropdown - Single column vertical list (Bland.ai style) */}
             <div
               className="relative"
               onMouseEnter={() => handleDropdownHover('studios')}
@@ -472,97 +342,44 @@ export const Header: React.FC = () => {
                 onClick={() => toggleDropdown('studios')}
                 aria-expanded={activeDropdown === 'studios'}
                 aria-haspopup="true"
-                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md transition-all duration-150 ${
+                className={`flex items-center space-x-1 px-3 py-1.5 rounded-md transition-colors ${
                   activeDropdown === 'studios' || activeSectionId === 'section-simulations'
                     ? 'text-ink-primary bg-warm font-semibold'
                     : 'hover:text-ink-primary hover:bg-warm/60'
                 }`}
               >
                 <span>Studios</span>
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-brand-light text-brand">
-                  5 Tools
-                </span>
                 <ChevronDown
-                  className={`w-3.5 h-3.5 transition-transform duration-200 ${
-                    activeDropdown === 'studios' ? 'rotate-180 text-brand' : 'text-ink-muted'
+                  className={`w-3.5 h-3.5 transition-transform duration-150 ${
+                    activeDropdown === 'studios' ? 'rotate-180 text-ink-primary' : 'text-ink-muted'
                   }`}
                 />
               </button>
 
-              {/* Studios Dropdown Panel */}
               <div
                 style={{ backgroundColor: '#ffffff' }}
-                className={`absolute top-full left-1/2 -translate-x-1/2 mt-2 w-[620px] max-w-[calc(100vw-2rem)] bg-white border border-border rounded-xl shadow-2xl shadow-black/10 p-4 z-50 transition-all duration-200 ease-out transform ${
+                className={`absolute top-full left-0 mt-1.5 w-52 bg-white border border-border rounded-lg shadow-lg py-1.5 z-[60] transition-all duration-150 transform ${
                   activeDropdown === 'studios'
-                    ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto'
-                    : 'opacity-0 -translate-y-2 scale-[0.98] pointer-events-none'
+                    ? 'opacity-100 translate-y-0 pointer-events-auto visible'
+                    : 'opacity-0 -translate-y-1 pointer-events-none invisible'
                 }`}
               >
-                <div className="grid grid-cols-2 gap-2.5 pb-3">
-                  {studioItems.map(item => {
-                    const IconComponent = item.icon;
-                    const isActive = activeSectionId === item.id;
-                    return (
-                      <button
-                        key={item.name}
-                        onClick={() => scrollTo(item.id, item.chapterNum)}
-                        className={`text-left p-2.5 rounded-lg border transition-all duration-150 group flex items-start space-x-3 ${
-                          isActive
-                            ? 'bg-warm border-border font-medium shadow-xs'
-                            : 'bg-white border-transparent hover:bg-warm/70 hover:border-border/60'
-                        }`}
-                      >
-                        <div
-                          className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all duration-150 ${
-                            item.highlight
-                              ? 'bg-brand-light text-brand group-hover:bg-brand group-hover:text-white'
-                              : 'bg-warm text-ink-primary group-hover:bg-ink-primary group-hover:text-white'
-                          }`}
-                        >
-                          <IconComponent className="w-4 h-4" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-ink-primary group-hover:text-brand transition-colors">
-                              {item.name}
-                            </span>
-                            <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-warm text-ink-secondary">
-                              {item.tag}
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-ink-secondary mt-0.5 line-clamp-2 leading-relaxed">
-                            {item.description}
-                          </p>
-                        </div>
-                        <ChevronRight className="w-3.5 h-3.5 text-ink-muted opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all self-center" />
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Bottom Studios Banner */}
-                <div
-                  style={{ backgroundColor: '#F4F5F0' }}
-                  className="bg-warm border-t border-border -mx-4 -mb-4 px-4 py-2.5 rounded-b-xl flex items-center justify-between text-xs"
-                >
-                  <span className="text-[11px] text-ink-secondary">
-                    All tools sync in real time via the shared CPM schedule engine.
-                  </span>
+                {studioMenuItems.map(item => (
                   <button
-                    onClick={() => scrollTo('section-simulations', 6)}
-                    className="flex items-center space-x-1 text-[11px] font-bold text-brand hover:text-brand-hover transition-colors"
+                    key={item.id}
+                    onClick={() => scrollTo(item.id, item.chapterNum)}
+                    className="w-full text-left px-3.5 py-1.5 text-xs text-ink-secondary hover:text-ink-primary hover:bg-warm transition-colors"
                   >
-                    <span>Run Delay Simulation</span>
-                    <ArrowRight className="w-3 h-3" />
+                    {item.name}
                   </button>
-                </div>
+                ))}
               </div>
             </div>
 
             {/* FAQ Quick Link */}
             <button
               onClick={() => scrollTo('section-faq')}
-              className={`px-3 py-1.5 rounded-md transition-all duration-150 ${
+              className={`px-3 py-1.5 rounded-md transition-colors ${
                 activeSectionId === 'section-faq'
                   ? 'text-ink-primary bg-warm font-semibold'
                   : 'hover:text-ink-primary hover:bg-warm/60'
@@ -572,33 +389,33 @@ export const Header: React.FC = () => {
             </button>
           </nav>
 
-          {/* Status Indicators & Action Controls */}
+          {/* Clean Status & Action Controls (Bland.ai right-side style) */}
           <div className="flex items-center space-x-2 sm:space-x-2.5">
-            {/* Live Duration Pill with Critical Path Status */}
+            {/* Desktop Project Switcher */}
+            <div className="hidden md:block">
+              <ProjectSwitcher variant="header" />
+            </div>
+
+            {/* Live Duration Badge */}
             <div
-              className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-xs font-mono font-bold border transition-colors ${
+              className={`hidden sm:flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-xs font-mono font-medium border transition-colors ${
                 schedule.projectDuration > 18
                   ? 'bg-critical-light text-critical border-critical-border'
                   : 'bg-warm text-ink-primary border-border'
               }`}
-              title={`Calculated project duration: ${schedule.projectDuration} workdays (${schedule.criticalPaths.length} critical path${schedule.criticalPaths.length > 1 ? 's' : ''})`}
+              title={`Project duration: ${schedule.projectDuration} workdays`}
             >
-              <Clock className="w-3.5 h-3.5 text-ink-secondary" />
+              <Clock className="w-3.5 h-3.5 text-ink-muted" />
               <span>{schedule.projectDuration}d</span>
-              {hasMultipleCriticalPaths && (
-                <span className="hidden sm:inline-flex text-[9px] px-1 py-0.2 rounded bg-warning-light text-warning font-sans font-bold border border-warning-border">
-                  2 Paths
-                </span>
-              )}
             </div>
 
-            {/* Presenter Mode Toggle (Visible on tablet & desktop; available in mobile drawer) */}
+            {/* Presenter Mode Toggle (Outline button matching Bland.ai 'Try for free') */}
             <button
               onClick={togglePresenterMode}
-              className={`hidden sm:flex px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-150 items-center space-x-1.5 border ${
+              className={`hidden sm:flex px-3 py-1.5 rounded-md text-xs font-medium transition-colors items-center space-x-1.5 border ${
                 presenterMode
-                  ? 'bg-ink-primary text-white border-ink-primary shadow-xs'
-                  : 'bg-white text-ink-secondary hover:text-ink-primary border-border hover:bg-warm'
+                  ? 'bg-ink-primary text-white border-ink-primary'
+                  : 'bg-white text-ink-primary border-border hover:bg-warm'
               }`}
               title="Toggle Classroom Presenter Stage bar"
             >
@@ -606,29 +423,28 @@ export const Header: React.FC = () => {
               <span>Presenter</span>
             </button>
 
-            {/* Reset Button (Visible when schedule is modified) */}
-            {isModified ? (
+            {/* Reset Button (Only visible when schedule is modified) */}
+            {isModified && (
               <button
-                onClick={resetToBaseline}
-                className="px-2 py-1 rounded-md text-xs font-semibold text-warning bg-warning-light border border-warning-border hover:bg-warning/20 transition-all flex items-center space-x-1 animate-pulse"
-                title="Reset schedule back to baseline 18 workdays"
+                onClick={() => {
+                  if (window.confirm(`Reset schedule back to approved baseline (${baselineSchedule.projectDuration} workdays)?`)) {
+                    resetToBaseline();
+                  }
+                }}
+                className="px-2.5 py-1.5 rounded-md text-xs font-medium text-amber-800 bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-colors flex items-center space-x-1"
+                title={`Reset schedule back to baseline (${baselineSchedule.projectDuration} workdays)`}
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span className="hidden xs:inline">Reset</span>
               </button>
-            ) : (
-              <div className="hidden xl:flex items-center space-x-1 text-[11px] text-success font-medium bg-success-light px-2 py-0.5 rounded border border-success-border">
-                <CheckCircle2 className="w-3 h-3" />
-                <span>Baseline</span>
-              </div>
             )}
 
-            {/* Primary Action Button - Restrained Amber CTA (Available on tablet/desktop & in mobile drawer) */}
+            {/* Primary Action Button (Solid black button matching Bland.ai 'Book a call') */}
             <button
               onClick={() => scrollTo('section-simulations', 6)}
-              className="hidden sm:flex px-3 py-1.5 rounded-md text-xs font-bold bg-brand text-white hover:bg-brand-hover shadow-xs transition-all duration-150 items-center space-x-1.5 group"
+              className="hidden sm:flex px-3.5 py-1.5 rounded-md text-xs font-semibold bg-ink-primary text-white hover:bg-ink-primary/90 shadow-xs transition-colors items-center space-x-1.5"
             >
-              <Sliders className="w-3.5 h-3.5 transition-transform duration-150 group-hover:rotate-12" />
+              <Sliders className="w-3.5 h-3.5" />
               <span>Simulations</span>
             </button>
 
@@ -674,6 +490,14 @@ export const Header: React.FC = () => {
             >
               Presenter Mode: {presenterMode ? 'ON' : 'OFF'}
             </button>
+          </div>
+
+          {/* Mobile Project Switcher */}
+          <div className="pb-2 border-b border-border">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block mb-1.5">
+              Active Project
+            </span>
+            <ProjectSwitcher variant="inline" />
           </div>
 
           {/* Mobile Accordion 1: Curriculum */}

@@ -5,13 +5,46 @@ export interface ActivityDependency {
   classification?: DependencyClassification;
 }
 
+export interface ProjectCalendarConfig {
+  hoursPerDay: number;
+  workdaysPerWeek: number;
+}
+
+export interface ProjectMetadata {
+  isSample?: boolean;
+  category?: string;
+  author?: string;
+  version?: string;
+  tags?: string[];
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  description: string;
+  activities: Activity[];
+  baselineActivities: Activity[];
+  createdAt: string;
+  updatedAt: string;
+  calendarConfig: ProjectCalendarConfig;
+  metadata: ProjectMetadata;
+}
+
+export type ActivityCategory =
+  | 'Planning'
+  | 'Design'
+  | 'Engineering'
+  | 'Quality'
+  | 'Deployment'
+  | string;
+
 export interface Activity {
   id: string;
   name: string;
   duration: number;
   predecessors: string[];
   description?: string;
-  category?: 'Planning' | 'Design' | 'Engineering' | 'Quality' | 'Deployment';
+  category?: ActivityCategory;
   progress?: number; // 0 to 100%
   isMilestone?: boolean;
   dependencyClassification?: DependencyClassification;
@@ -111,7 +144,9 @@ export interface ScheduleComparisonResult {
   keyTakeaway: string;
 }
 
-export type SimulationType = 'duration' | 'delay' | 'dependency' | 'pert';
+export type ScheduleViewMode = 'current' | 'preview' | 'baseline';
+
+export type SimulationType = 'duration' | 'delay' | 'compression' | 'dependency' | 'pert';
 
 export interface SimulationScenario {
   id: string;

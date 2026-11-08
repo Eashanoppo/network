@@ -1,5 +1,6 @@
 import {
   Activity,
+  ActivityDependency,
   ScheduleCalculationResult,
   ScheduleComparisonResult,
   SimulationScenario,
@@ -274,7 +275,7 @@ export function simulateDurationChange(
 
   // Clone activities immutably
   const proposedActivities = baseActivities.map(act =>
-    act.id === activityId ? { ...act, duration: Math.max(1, newDuration) } : { ...act }
+    act.id === activityId ? { ...act, duration: Math.max(0, newDuration) } : { ...act }
   );
 
   const baseSchedule = calculateSchedule(baseActivities);
@@ -292,6 +293,24 @@ export function simulateDurationChange(
     isValid: simSchedule.isValid,
     validationErrors: simSchedule.validationErrors || [],
   };
+}
+
+/**
+ * Simulates schedule compression (crashing) by reducing an activity's duration.
+ */
+export function simulateCompression(
+  baseActivities: Activity[],
+  activityId: string,
+  reductionDays: number
+): SimulationScenario {
+  const targetAct = baseActivities.find(a => a.id === activityId);
+  const currentDuration = targetAct ? targetAct.duration : 1;
+  const newDuration = Math.max(1, currentDuration - reductionDays);
+
+  const scenario = simulateDurationChange(baseActivities, activityId, newDuration);
+  scenario.type = 'compression';
+  scenario.description = `Crash Activity ${activityId} duration: ${currentDuration}d → ${newDuration}d (-${reductionDays}d)`;
+  return scenario;
 }
 
 /**
@@ -318,8 +337,13 @@ export function simulateDelay(
 export function simulateDependencyChange(
   baseActivities: Activity[],
   activityId: string,
-  newPredecessors: string[]
+  newPredecessors: (string | ActivityDependency)[]
 ): SimulationScenario {
+  const relations: ActivityDependency[] = newPredecessors.map(p =>
+    typeof p === 'string' ? { predecessorId: p, type: 'FS', lag: 0 } : p
+  );
+  const predIds = Array.from(new Set(relations.map(r => r.predecessorId)));
+
   const validationErrors: ValidationError[] = [];
 
   const targetAct = baseActivities.find(a => a.id === activityId);
@@ -332,7 +356,7 @@ export function simulateDependencyChange(
   }
 
   const allIds = new Set(baseActivities.map(a => a.id));
-  for (const pred of newPredecessors) {
+  for (const pred of predIds) {
     if (pred === activityId) {
       validationErrors.push({
         activityId,
@@ -390,7 +414,9 @@ export function simulateDependencyChange(
   }
 
   const proposedActivities = baseActivities.map(act =>
-    act.id === activityId ? { ...act, predecessors: [...newPredecessors] } : { ...act }
+    act.id === activityId
+      ? { ...act, predecessors: predIds, dependencyRelations: relations }
+      : { ...act }
   );
 
   const baseSchedule = calculateSchedule(baseActivities);
@@ -398,9 +424,9 @@ export function simulateDependencyChange(
   const comparison = compareSchedules(baseSchedule, simSchedule, activityId);
 
   return {
-    id: `sim-dep-${activityId}-${newPredecessors.join(',')}`,
+    id: `sim-dep-${activityId}-${predIds.join(',')}`,
     type: 'dependency',
-    description: `Simulate dependencies for Activity ${activityId}: [${newPredecessors.join(', ')}]`,
+    description: `Simulate dependencies for Activity ${activityId}: [${predIds.join(', ')}]`,
     targetActivityId: activityId,
     proposedActivities,
     schedule: simSchedule,

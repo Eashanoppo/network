@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useSchedule } from '../../../context/ScheduleContext';
 import { CHAPTERS_DATA } from '../../../data/educationalContent';
 import { ChapterHeader } from '../../common/ChapterHeader';
 import { PresenterNotes } from '../../common/PresenterNotes';
 import { LiveDelayAlert } from '../../common/LiveDelayAlert';
+import { ScheduleViewModeBanner } from '../../common/ScheduleViewModeBanner';
 import {
   Clock,
   ArrowRight,
@@ -22,6 +23,7 @@ import {
 
 export const CpmCalculationStudio: React.FC = () => {
   const {
+    activeProject,
     schedule,
     selectedActivityId,
     setSelectedActivityId,
@@ -114,50 +116,92 @@ export const CpmCalculationStudio: React.FC = () => {
     return null;
   };
 
-  const inspectedFormula = getFormulaExplanation(
-    activeFormulaInspect.activityId,
-    activeFormulaInspect.field
-  );
+  const effectiveInspectId = schedule.activities[activeFormulaInspect.activityId]
+    ? activeFormulaInspect.activityId
+    : (schedule.activityList[0]?.id || '');
 
-  // Walkthrough steps data
-  const WALKTHROUGH_STEPS = [
-    {
-      step: 1,
-      title: 'Step 1: Forward Pass (Earliest Dates: ES & EF)',
-      direction: 'Left-to-Right (Start to End)',
-      rule: 'ES = max(Predecessor EFs) + 1 | EF = ES + Duration - 1',
-      description:
-        'We begin at Activity A on Day 1. Requirements (A, 3d) finishes on Day 3. Concurrently, both System Design (B, 4d) and Database Design (C, 3d) start on Day 4. B finishes Day 7, C finishes Day 6. Development (D) requires BOTH B and C to complete, so D starts on Day max(7, 6) + 1 = Day 8! Moving forward, Testing (E) runs Days 14–16, and User Training (F) concludes on Day 18.',
-      focusActivity: 'D',
-    },
-    {
-      step: 2,
-      title: 'Step 2: Backward Pass (Latest Dates: LF & LS)',
-      direction: 'Right-to-Left (End to Start)',
-      rule: 'LF = min(Successor LSs) - 1 | LS = LF - Duration + 1',
-      description:
-        `We anchor the terminal Activity F at total project duration (Day ${schedule.projectDuration}). F must start by Day ${schedule.activities['F']?.ls}. Testing (E) must finish before F starts (Day ${schedule.activities['E']?.lf}). Stepping backwards, Development (D) must finish by Day ${schedule.activities['D']?.lf}. When D's Latest Start is Day 8, both B and C must finish on Day 8 - 1 = Day 7.`,
-      focusActivity: 'C',
-    },
-    {
-      step: 3,
-      title: 'Step 3: Calculating Total Float (Slack)',
-      direction: 'Mathematical Difference (Late - Early)',
-      rule: 'Total Float = LS - ES = LF - EF',
-      description:
-        'Subtracting Early Start from Late Start reveals the slack buffer for every activity. For Activities A, B, D, E, F: LS - ES = 0 (Zero Slack). For Activity C: LS - ES = 5 - 4 = 1 workday of Total Float! Database Design can slip by 1 day without jeopardizing project completion.',
-      focusActivity: 'C',
-    },
-    {
-      step: 4,
-      title: 'Step 4: Identifying the Critical Path',
-      direction: 'Continuous Zero-Slack Sequence',
-      rule: 'Critical Path = Sequence of activities with Total Float = 0',
-      description:
-        `Tracing all activities with Total Float = 0 yields the Critical Path: ${schedule.criticalPaths.map(p => p.activityIds.join(' → ')).join(', ')}. Its total duration is ${schedule.projectDuration} workdays. This path governs project delivery time.`,
-      focusActivity: 'B',
-    },
-  ];
+  const inspectedFormula = effectiveInspectId
+    ? getFormulaExplanation(effectiveInspectId, activeFormulaInspect.field)
+    : null;
+
+  // Dynamically derive walkthrough steps for the active project
+  const WALKTHROUGH_STEPS = useMemo(() => {
+    const list = schedule.activityList;
+    if (list.length === 0) {
+      return [
+        {
+          step: 1,
+          title: 'Step 1: Forward Pass (Earliest Dates: ES & EF)',
+          direction: 'Left-to-Right (Start to End)',
+          rule: 'ES = max(Predecessor EFs) + 1 | EF = ES + Duration - 1',
+          description: 'No activities in this project yet. Add activities to run CPM calculations.',
+          focusActivity: '',
+        },
+      ];
+    }
+
+    const roots = list.filter(a => a.predecessors.length === 0);
+    const terminals = list.filter(a => a.successors.length === 0);
+    const criticalActs = list.filter(a => a.isCritical);
+    const nonCritActs = list.filter(a => !a.isCritical);
+    const multiPredAct = list.find(a => a.predecessors.length > 1) || list[Math.min(1, list.length - 1)];
+
+    // Step 1: Forward pass explanation
+    const rootNames = roots.map(r => `${r.id} (${r.name}, ${r.duration}d, Day 1..${r.ef})`).join(', ');
+    const mergeDesc = multiPredAct && multiPredAct.predecessors.length > 1
+      ? ` Activity ${multiPredAct.id} (${multiPredAct.name}) has multiple predecessors [${multiPredAct.predecessors.join(', ')}], so its ES is constrained by max(${multiPredAct.predecessors.map(p => `EF_${p}`).join(', ')}) + 1 = Day ${multiPredAct.es}.`
+      : '';
+    const step1Desc = `In ${activeProject.name}, the forward pass begins at root activit${roots.length > 1 ? 'ies' : 'y'} [${rootNames}]. Advancing left-to-right through dependencies, each early finish is EF = ES + D - 1.${mergeDesc} The final project completion reached is Day ${schedule.projectDuration}.`;
+
+    // Step 2: Backward pass explanation
+    const termNames = terminals.map(t => `${t.id} (LF = Day ${t.lf})`).join(', ');
+    const step2Desc = `Anchoring the terminal activit${terminals.length > 1 ? 'ies' : 'y'} [${termNames}] at total project duration (Day ${schedule.projectDuration}), we work right-to-left. For each predecessor, LF = min(Successor LSs) - 1, and LS = LF - D + 1. This establishes the absolute latest date each task can begin without delaying the overall deadline.`;
+
+    // Step 3: Total Float explanation
+    const floatEx = nonCritActs[0]
+      ? `For example, Activity ${nonCritActs[0].id} (${nonCritActs[0].name}) has LS=${nonCritActs[0].ls} and ES=${nonCritActs[0].es}, yielding Total Float = ${nonCritActs[0].totalFloat} workday(s). It can slip by up to ${nonCritActs[0].totalFloat}d without delaying project completion.`
+      : `All activities in this project have 0 slack.`;
+    const step3Desc = `Subtracting Early Start from Late Start (LS - ES) reveals the slack buffer for every activity. Critical activities have Total Float = 0 (Zero Slack). ${floatEx}`;
+
+    // Step 4: Critical Path explanation
+    const cpStrs = schedule.criticalPaths.map(p => p.activityIds.join(' → ')).join(' & ');
+    const step4Desc = `Tracing all unbroken paths of activities where Total Float = 0 identifies the Critical Path(s): ${cpStrs}. The total controlling duration is ${schedule.projectDuration} workdays. Any slippage on this path directly postpones final project delivery.`;
+
+    return [
+      {
+        step: 1,
+        title: 'Step 1: Forward Pass (Earliest Dates: ES & EF)',
+        direction: 'Left-to-Right (Start to End)',
+        rule: 'ES = max(Predecessor EFs) + 1 | EF = ES + Duration - 1',
+        description: step1Desc,
+        focusActivity: multiPredAct?.id || roots[0]?.id || '',
+      },
+      {
+        step: 2,
+        title: 'Step 2: Backward Pass (Latest Dates: LF & LS)',
+        direction: 'Right-to-Left (End to Start)',
+        rule: 'LF = min(Successor LSs) - 1 | LS = LF - Duration + 1',
+        description: step2Desc,
+        focusActivity: nonCritActs[0]?.id || terminals[0]?.id || '',
+      },
+      {
+        step: 3,
+        title: 'Step 3: Calculating Total Float (Slack)',
+        direction: 'Mathematical Difference (Late - Early)',
+        rule: 'Total Float = LS - ES = LF - EF',
+        description: step3Desc,
+        focusActivity: nonCritActs[0]?.id || criticalActs[0]?.id || '',
+      },
+      {
+        step: 4,
+        title: 'Step 4: Identifying the Critical Path',
+        direction: 'Continuous Zero-Slack Sequence',
+        rule: 'Critical Path = Sequence of activities with Total Float = 0',
+        description: step4Desc,
+        focusActivity: criticalActs[0]?.id || list[0]?.id || '',
+      },
+    ];
+  }, [schedule.activityList, schedule.criticalPaths, schedule.projectDuration, activeProject.name]);
 
   const currentStepData = WALKTHROUGH_STEPS[walkthroughStep - 1];
 
@@ -184,6 +228,9 @@ export const CpmCalculationStudio: React.FC = () => {
         />
 
         <LiveDelayAlert />
+
+        {/* Unified View Mode Banner */}
+        <ScheduleViewModeBanner className="mb-6" />
 
         {/* Prominent Formulas Strip */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
@@ -369,10 +416,16 @@ export const CpmCalculationStudio: React.FC = () => {
             </div>
 
             {/* Calculation Table */}
-            <div className="sm:hidden flex items-center space-x-1 text-[11px] text-ink-muted mb-2">
-              <span className="font-semibold text-brand">Swipe table horizontally for all 11 columns &rarr;</span>
-            </div>
-            <div className="overflow-x-auto">
+            {schedule.activityList.length === 0 ? (
+              <div className="py-16 text-center text-xs text-ink-muted bg-warm/50 rounded-lg border border-border">
+                No activities in this project yet. Add activities in the Overview or Activity Studio to calculate the CPM schedule.
+              </div>
+            ) : (
+              <>
+                <div className="sm:hidden flex items-center space-x-1 text-[11px] text-ink-muted mb-2">
+                  <span className="font-semibold text-brand">Swipe table horizontally for all 11 columns &rarr;</span>
+                </div>
+                <div className="overflow-x-auto">
               <table className="w-full text-left text-xs sm:text-sm border-collapse">
                 <thead>
                   <tr className="border-b border-border bg-warm text-xs font-semibold text-ink-secondary uppercase tracking-wider">
@@ -547,6 +600,8 @@ export const CpmCalculationStudio: React.FC = () => {
                 </tbody>
               </table>
             </div>
+            </>
+            )}
 
             {/* Expandable Mathematical Formula Derivation Inspector */}
             {inspectedFormula && (

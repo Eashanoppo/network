@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   RELATIONSHIP_TYPES_DATA,
   DEPENDENCY_CLASSIFICATIONS_DATA,
   CHAPTERS_DATA,
 } from '../../../data/educationalContent';
-import { RelationshipType, DependencyClassification } from '../../../types/scheduling';
+import { RelationshipType, DependencyClassification, ActivityDependency } from '../../../types/scheduling';
 import { useSchedule } from '../../../context/ScheduleContext';
 import { ChapterHeader } from '../../common/ChapterHeader';
 import { PresenterNotes } from '../../common/PresenterNotes';
+import { ScheduleViewModeBanner } from '../../common/ScheduleViewModeBanner';
+import { normalizeActivityDependencies } from '../../../engine/cpmEngine';
 import {
   GitBranch,
   ArrowRight,
@@ -21,16 +23,56 @@ import {
   Layers,
   AlertCircle,
   RotateCcw,
+  Plus,
+  Trash2,
+  Sparkles,
+  Check,
+  X,
+  Clock,
+  ChevronDown,
 } from 'lucide-react';
 
 export const DependencyRelationshipLab: React.FC = () => {
-  const { activities, updateActivityDependencies, resetToBaseline } = useSchedule();
-  const [activeTab, setActiveTab] = useState<'pdmLab' | 'registry'>('pdmLab');
+  const {
+    activeProject,
+    activities,
+    currentActivities,
+    schedule,
+    updateActivityDependencies,
+    runDependencySimulation,
+    resetToBaseline,
+    selectedActivityId,
+    setSelectedActivityId,
+    activeSimulation,
+    applyActiveSimulation,
+    discardActiveSimulation,
+  } = useSchedule();
+
+  // Tab: Guided Demo vs Live Project Editor vs Registry
+  const [activeTab, setActiveTab] = useState<'pdmLab' | 'liveEditor' | 'registry'>('liveEditor');
+
+  // Guided demo state (independent A/B model)
   const [selectedRelType, setSelectedRelType] = useState<RelationshipType>('FS');
   const [selectedClassification, setSelectedClassification] =
     useState<DependencyClassification>('Mandatory');
   const [lagDays, setLagDays] = useState<number>(0);
   const [classQuizSelection, setClassQuizSelection] = useState<string | null>(null);
+  const [showTaxonomy, setShowTaxonomy] = useState<boolean>(false);
+
+  // Live Project Dependency Editor State
+  const defaultSuccId =
+    selectedActivityId && currentActivities.some(a => a.id === selectedActivityId)
+      ? selectedActivityId
+      : currentActivities[1]?.id || currentActivities[0]?.id || '';
+
+  const [liveSuccessorId, setLiveSuccessorId] = useState<string>(defaultSuccId);
+  const [livePredecessorId, setLivePredecessorId] = useState<string>(
+    currentActivities.find(a => a.id !== defaultSuccId)?.id || ''
+  );
+  const [liveRelType, setLiveRelType] = useState<RelationshipType>('FS');
+  const [liveLag, setLiveLag] = useState<number>(0);
+  const [liveClassification, setLiveClassification] = useState<DependencyClassification>('Mandatory');
+  const [editorNotice, setEditorNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const chapter4 = CHAPTERS_DATA[3];
   const currentRel =
@@ -57,69 +99,151 @@ export const DependencyRelationshipLab: React.FC = () => {
     startB = finishB - durationB + 1;
   }
 
-  // Real University Management System Activity Dependencies Data
-  const REAL_DEPENDENCY_REGISTRY = [
-    {
-      id: 'A',
-      name: 'Requirements Analysis',
-      pred: 'None (Root Node)',
-      type: '—',
-      classification: 'Internal',
-      justification: 'Project charter initiates internal student & faculty stakeholder interviews.',
-      fastTrackingFeasible: false,
-      reason: 'Cannot fast-track requirements without baseline scope definition.',
-    },
-    {
-      id: 'B',
-      name: 'System Design',
-      pred: 'A (Requirements Analysis)',
-      type: 'Finish-to-Start (FS)',
-      classification: 'Mandatory',
-      justification: 'Hard logic: Engineering architecture cannot be modeled until requirements are frozen.',
-      fastTrackingFeasible: false,
-      reason: 'Physical/technical impossibility to architect modules without requirements.',
-    },
-    {
-      id: 'C',
-      name: 'Database Design',
-      pred: 'A (Requirements Analysis)',
-      type: 'Finish-to-Start (FS)',
-      classification: 'Mandatory',
-      justification: 'Hard logic: Normalized relational schemas require entity attributes from requirements.',
-      fastTrackingFeasible: false,
-      reason: 'Runs concurrently with B in parallel once A finishes.',
-    },
-    {
-      id: 'D',
-      name: 'Development',
-      pred: 'B (System Design) & C (Database Design)',
-      type: 'Finish-to-Start (FS)',
-      classification: 'Mandatory',
-      justification: 'Hard logic: Coding portal and database queries requires both architecture blueprints.',
-      fastTrackingFeasible: false,
-      reason: 'Developers require both schema schemas and API contracts to implement software.',
-    },
-    {
-      id: 'E',
-      name: 'Testing',
-      pred: 'D (Development)',
-      type: 'Finish-to-Start (FS)',
-      classification: 'Discretionary',
-      justification: 'Soft logic / Best Practice: Formal policy dictates staging integration testing before training.',
-      fastTrackingFeasible: true,
-      reason: 'Prime fast-tracking target! In an emergency, training environments could start testing concurrently (SS) at higher risk of defect rework.',
-    },
-    {
-      id: 'F',
-      name: 'User Training',
-      pred: 'E (Testing)',
-      type: 'Finish-to-Start (FS)',
-      classification: 'External',
-      justification: 'University registrar academic calendar and faculty availability constrain training dates.',
-      fastTrackingFeasible: false,
-      reason: 'External stakeholders cannot be rescheduled arbitrarily by the internal software team.',
-    },
-  ];
+  // Active activities for live editor
+  const liveSuccessorAct = currentActivities.find(a => a.id === liveSuccessorId) || currentActivities[0];
+  const livePredecessorAct = currentActivities.find(a => a.id === livePredecessorId);
+
+  // Existing normalized dependency relations for the live successor
+  const currentSuccessorRelations = useMemo(() => {
+    if (!liveSuccessorAct) return [];
+    return normalizeActivityDependencies(liveSuccessorAct);
+  }, [liveSuccessorAct]);
+
+  // Derived math explanation for the live dependency pair
+  const liveMathDerivation = useMemo(() => {
+    if (!livePredecessorAct || !liveSuccessorAct) return null;
+    const pred = schedule.activities[livePredecessorAct.id] || livePredecessorAct;
+    const succ = schedule.activities[liveSuccessorAct.id] || liveSuccessorAct;
+    const pES = pred.es ?? 1;
+    const pEF = pred.ef ?? (pES + pred.duration - 1);
+    const sDur = succ.duration ?? 1;
+
+    let reqStart = 1;
+    let formula = '';
+    let description = '';
+
+    if (liveRelType === 'FS') {
+      reqStart = pEF + 1 + liveLag;
+      formula = `ES_succ ≥ EF_pred + 1 + lag = ${pEF} + 1 + (${liveLag}) = Day ${reqStart}`;
+      description = `${succ.name} cannot begin until ${liveLag >= 0 ? `${liveLag} days after` : `${Math.abs(liveLag)} days before`} ${pred.name} completes on Day ${pEF}.`;
+    } else if (liveRelType === 'SS') {
+      reqStart = pES + liveLag;
+      formula = `ES_succ ≥ ES_pred + lag = ${pES} + (${liveLag}) = Day ${reqStart}`;
+      description = `${succ.name} start is anchored to ${pred.name} start (Day ${pES}) plus ${liveLag} days.`;
+    } else if (liveRelType === 'FF') {
+      const reqFinish = pEF + liveLag;
+      reqStart = reqFinish - sDur + 1;
+      formula = `EF_succ ≥ EF_pred + lag = ${pEF} + (${liveLag}) = Day ${reqFinish} (ES ≥ ${reqStart})`;
+      description = `${succ.name} finish is anchored to ${pred.name} finish (Day ${pEF}) plus ${liveLag} days.`;
+    } else if (liveRelType === 'SF') {
+      const reqFinish = pES - 1 + liveLag;
+      reqStart = reqFinish - sDur + 1;
+      formula = `EF_succ ≥ ES_pred - 1 + lag = ${pES} - 1 + (${liveLag}) = Day ${reqFinish}`;
+      description = `${succ.name} finish is anchored to ${pred.name} start (Day ${pES}) plus ${liveLag} days.`;
+    }
+
+    return {
+      predName: pred.name,
+      succName: succ.name,
+      pES,
+      pEF,
+      sDur,
+      reqStart,
+      formula,
+      description,
+    };
+  }, [livePredecessorAct, liveSuccessorAct, liveRelType, liveLag, schedule.activities]);
+
+  // Handle adding/updating a dependency in live project
+  const handleAddLiveDependency = () => {
+    if (!liveSuccessorAct || !livePredecessorAct) return;
+    if (liveSuccessorAct.id === livePredecessorAct.id) {
+      setEditorNotice({ type: 'error', message: 'An activity cannot depend on itself.' });
+      return;
+    }
+
+    // Build new list of dependencies
+    const filtered = currentSuccessorRelations.filter(
+      r => r.predecessorId !== livePredecessorAct.id
+    );
+    const newRelations: ActivityDependency[] = [
+      ...filtered,
+      {
+        predecessorId: livePredecessorAct.id,
+        type: liveRelType,
+        lag: liveLag,
+        classification: liveClassification,
+      },
+    ];
+
+    const result = updateActivityDependencies(liveSuccessorAct.id, newRelations);
+    if (result.success) {
+      setEditorNotice({
+        type: 'success',
+        message: `Added ${liveRelType} dependency (${livePredecessorAct.id} → ${liveSuccessorAct.id}) to ${activeProject.name}!`,
+      });
+      setTimeout(() => setEditorNotice(null), 4000);
+    } else {
+      setEditorNotice({
+        type: 'error',
+        message: result.error || 'Failed to add dependency (cycle detected).',
+      });
+    }
+  };
+
+  // Handle previewing dependency impact via unified simulation
+  const handlePreviewLiveDependency = () => {
+    if (!liveSuccessorAct || !livePredecessorAct) return;
+    if (liveSuccessorAct.id === livePredecessorAct.id) {
+      setEditorNotice({ type: 'error', message: 'An activity cannot depend on itself.' });
+      return;
+    }
+
+    const filtered = currentSuccessorRelations.filter(
+      r => r.predecessorId !== livePredecessorAct.id
+    );
+    const newRelations: ActivityDependency[] = [
+      ...filtered,
+      {
+        predecessorId: livePredecessorAct.id,
+        type: liveRelType,
+        lag: liveLag,
+        classification: liveClassification,
+      },
+    ];
+
+    const sim = runDependencySimulation(liveSuccessorAct.id, newRelations);
+    if (!sim.isValid) {
+      setEditorNotice({
+        type: 'error',
+        message: sim.validationErrors[0]?.message || 'Invalid simulation (circular dependency detected).',
+      });
+    } else {
+      setEditorNotice({
+        type: 'success',
+        message: `Previewing ${liveRelType} link in Simulation Preview mode! Duration: ${sim.schedule.projectDuration}d (${sim.comparison.explanation})`,
+      });
+    }
+  };
+
+  // Handle removing a dependency
+  const handleRemoveLiveDependency = (predIdToRemove: string) => {
+    if (!liveSuccessorAct) return;
+    const remaining = currentSuccessorRelations.filter(r => r.predecessorId !== predIdToRemove);
+    const result = updateActivityDependencies(liveSuccessorAct.id, remaining);
+    if (result.success) {
+      setEditorNotice({
+        type: 'success',
+        message: `Removed predecessor ${predIdToRemove} from Activity ${liveSuccessorAct.id}!`,
+      });
+      setTimeout(() => setEditorNotice(null), 4000);
+    } else {
+      setEditorNotice({
+        type: 'error',
+        message: result.error || 'Failed to remove dependency.',
+      });
+    }
+  };
 
   return (
     <section id="chapter-04" className="w-full bg-warm py-16 lg:py-20 border-b border-border scroll-mt-20">
@@ -144,22 +268,37 @@ export const DependencyRelationshipLab: React.FC = () => {
           audiencePrompt="Why are Discretionary dependencies the primary target when a project manager needs to fast-track a delayed schedule?"
         />
 
-        {/* Crucial Academic Distinction Banner */}
-        <div className="bg-white border border-border rounded-xl p-5 mb-8 flex items-start space-x-3.5 shadow-xs">
-          <Info className="w-5 h-5 text-ink-primary shrink-0 mt-0.5" />
-          <div className="text-xs sm:text-sm">
-            <span className="font-bold text-ink-primary uppercase tracking-wider block text-[11px]">
-              Essential Academic Distinction (Kathy Schwalbe Chapter 6)
+        {/* Unified View Mode Banner */}
+        <ScheduleViewModeBanner className="mb-6" />
+
+        {/* Crucial Academic Distinction Callout */}
+        <div className="bg-white border border-border rounded-lg px-4 py-2.5 mb-6 flex items-center justify-between shadow-xs text-xs">
+          <div className="flex items-center space-x-2.5">
+            <span className="w-2 h-2 rounded-full bg-brand" />
+            <span className="text-ink-secondary">
+              <strong className="text-ink-primary">Academic Distinction:</strong> <em>Classifications</em> explain <strong>why</strong> dependencies exist; <em>PDM Types (FS, SS, FF, SF)</em> govern <strong>how</strong> start and finish dates are mathematically chained.
             </span>
-            <p className="text-ink-secondary mt-1 leading-relaxed">
-              <strong>Dependency Classifications</strong> (<em>Mandatory, Discretionary, External, Internal</em>) specify <strong>why</strong> a constraint exists. In contrast, <strong>Logical Relationship Types</strong> (<em>FS, SS, FF, SF</em>) define <strong>how</strong> start and finish dates are mathematically chained in the schedule. Never confuse reason with precedence mechanics.
-            </p>
           </div>
+          <span className="text-[10px] font-mono text-ink-muted uppercase hidden md:inline-block">
+            PMBOK 7th Ed.
+          </span>
         </div>
 
         {/* Primary Section Mode Selector Tabs */}
-        <div className="flex items-center justify-between mb-6 border-b border-border pb-3">
-          <div className="flex items-center space-x-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 border-b border-border pb-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setActiveTab('liveEditor')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center space-x-2 ${
+                activeTab === 'liveEditor'
+                  ? 'bg-ink-primary text-white shadow-xs'
+                  : 'bg-white text-ink-secondary hover:text-ink-primary border border-border'
+              }`}
+            >
+              <Sliders className="w-3.5 h-3.5 text-brand" />
+              <span>1. Live Project Dependency Editor ({activeProject.name})</span>
+            </button>
+
             <button
               onClick={() => setActiveTab('pdmLab')}
               className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center space-x-2 ${
@@ -169,7 +308,7 @@ export const DependencyRelationshipLab: React.FC = () => {
               }`}
             >
               <GitBranch className="w-3.5 h-3.5" />
-              <span>1. PDM Relationship Visualizer (Teaching Demo)</span>
+              <span>2. PDM Concept Demonstration (A/B Model)</span>
             </button>
 
             <button
@@ -181,13 +320,380 @@ export const DependencyRelationshipLab: React.FC = () => {
               }`}
             >
               <Layers className="w-3.5 h-3.5" />
-              <span>2. Project Case Dependency Registry (Actual Tasks)</span>
+              <span>3. Project Dependency Registry &amp; Taxonomy</span>
             </button>
+          </div>
+
+          <div className="text-xs font-mono text-ink-muted">
+            Active Project: <strong className="text-ink-primary">{activeProject.name}</strong>
           </div>
         </div>
 
-        {activeTab === 'pdmLab' ? (
-          /* Tab 1: Interactive Precedence Relationship Lab */
+        {/* TAB 1: LIVE PROJECT DEPENDENCY EDITOR */}
+        {activeTab === 'liveEditor' && (
+          <div className="bg-white rounded-xl border border-border p-6 sm:p-8 mb-10 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-border mb-6">
+              <div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">
+                    Active Project Scheduling Engine
+                  </span>
+                  <span className="text-[10px] px-2 py-0.5 rounded font-mono bg-brand-light text-brand border border-brand-border">
+                    Real-time CPM Recalculation
+                  </span>
+                </div>
+                <h3 className="text-xl font-bold text-ink-primary mt-1">
+                  Live Project Dependency Editor
+                </h3>
+                <p className="text-xs sm:text-sm text-ink-secondary mt-0.5">
+                  Select activities from <strong>{activeProject.name}</strong>, configure dependency type (FS, SS, FF, SF), adjust lead/lag, and immediately test or apply.
+                </p>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={resetToBaseline}
+                  className="px-3 py-1.5 rounded-md border border-border hover:bg-warm text-ink-secondary text-xs font-semibold flex items-center space-x-1"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Reset Project</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Editor Notice Alert */}
+            {editorNotice && (
+              <div
+                className={`mb-6 p-3.5 rounded-lg border text-xs font-medium flex items-center justify-between ${
+                  editorNotice.type === 'success'
+                    ? 'bg-success-light border-success text-success'
+                    : 'bg-critical-light border-critical text-critical'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  {editorNotice.type === 'success' ? (
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                  )}
+                  <span>{editorNotice.message}</span>
+                </div>
+                <button onClick={() => setEditorNotice(null)} className="opacity-70 hover:opacity-100">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            {/* Interactive Control Panel */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* Left Column: Form Controls */}
+              <div className="lg:col-span-5 space-y-4">
+                {/* 1. Successor Activity (Target Task) */}
+                <div className="p-4 rounded-lg bg-warm border border-border">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block mb-1.5">
+                    1. Successor Activity (Dependent Task)
+                  </label>
+                  <select
+                    value={liveSuccessorId}
+                    onChange={e => {
+                      setLiveSuccessorId(e.target.value);
+                      setSelectedActivityId(e.target.value);
+                    }}
+                    className="w-full bg-white text-ink-primary font-bold text-xs rounded-lg p-2.5 border border-border focus:outline-none focus:ring-1 focus:ring-brand"
+                  >
+                    {currentActivities.map(act => (
+                      <option key={act.id} value={act.id}>
+                        {act.id}: {act.name} ({act.duration}d) — Starts Day {schedule.activities[act.id]?.es ?? 1}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 2. Predecessor Activity */}
+                <div className="p-4 rounded-lg bg-warm border border-border">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block mb-1.5">
+                    2. Predecessor Activity (Prerequisite Task)
+                  </label>
+                  <select
+                    value={livePredecessorId}
+                    onChange={e => setLivePredecessorId(e.target.value)}
+                    className="w-full bg-white text-ink-primary font-bold text-xs rounded-lg p-2.5 border border-border focus:outline-none focus:ring-1 focus:ring-brand"
+                  >
+                    <option value="" disabled>
+                      Select a predecessor…
+                    </option>
+                    {currentActivities
+                      .filter(a => a.id !== liveSuccessorId)
+                      .map(act => (
+                        <option key={act.id} value={act.id}>
+                          {act.id}: {act.name} ({act.duration}d) — Finishes Day {schedule.activities[act.id]?.ef ?? act.duration}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                {/* 3. Relationship Type & Lag */}
+                <div className="p-4 rounded-lg bg-warm border border-border space-y-3">
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block mb-1.5">
+                      3. Relationship Type (PDM)
+                    </label>
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {(['FS', 'SS', 'FF', 'SF'] as RelationshipType[]).map(t => (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => setLiveRelType(t)}
+                          className={`py-1.5 rounded-md text-xs font-mono font-bold transition-all ${
+                            liveRelType === t
+                              ? 'bg-ink-primary text-white shadow-xs'
+                              : 'bg-white text-ink-secondary hover:text-ink-primary border border-border'
+                          }`}
+                        >
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">
+                        Lead / Lag (Workdays)
+                      </label>
+                      <span className="font-mono text-xs font-bold text-ink-primary">
+                        {liveLag > 0 ? `+${liveLag}d lag` : liveLag < 0 ? `${liveLag}d lead` : '0d'}
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={-4}
+                      max={8}
+                      value={liveLag}
+                      onChange={e => setLiveLag(Number(e.target.value))}
+                      className="w-full accent-brand cursor-pointer"
+                    />
+                    <div className="flex justify-between text-[10px] font-mono text-ink-muted mt-0.5">
+                      <span>-4d (Lead)</span>
+                      <span>0d (Standard)</span>
+                      <span>+8d (Lag)</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block mb-1.5">
+                      Dependency Classification
+                    </label>
+                    <div className="grid grid-cols-2 gap-1.5 text-xs">
+                      {(['Mandatory', 'Discretionary', 'External', 'Internal'] as DependencyClassification[]).map(c => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setLiveClassification(c)}
+                          className={`py-1 px-2 rounded-md font-semibold text-left transition-all ${
+                            liveClassification === c
+                              ? 'bg-warm border border-ink-primary text-ink-primary font-bold'
+                              : 'bg-white text-ink-secondary border border-border hover:text-ink-primary'
+                          }`}
+                        >
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-center space-x-2 pt-2">
+                  <button
+                    onClick={handlePreviewLiveDependency}
+                    disabled={!livePredecessorId || livePredecessorId === liveSuccessorId}
+                    className="flex-1 py-2.5 px-3 rounded-lg text-xs font-bold bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-40 transition-colors shadow-xs flex items-center justify-center space-x-1.5"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Preview in Schedule</span>
+                  </button>
+
+                  <button
+                    onClick={handleAddLiveDependency}
+                    disabled={!livePredecessorId || livePredecessorId === liveSuccessorId}
+                    className="flex-1 py-2.5 px-3 rounded-lg text-xs font-bold bg-brand text-white hover:bg-brand-hover disabled:opacity-40 transition-colors shadow-xs flex items-center justify-center space-x-1.5"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Apply to Project</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Right Column: Visual Relationship Diagram & Existing Links */}
+              <div className="lg:col-span-7 space-y-6">
+                {/* Mini Visual Diagram of Selected Relationship */}
+                <div className="p-5 rounded-xl border border-border bg-warm">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block mb-3">
+                    Relationship Geometry &amp; Precedence Vector
+                  </span>
+
+                  {liveMathDerivation ? (
+                    <div>
+                      {/* SVG Mini Precedence Diagram */}
+                      <div className="bg-white rounded-lg p-4 border border-border mb-4 flex items-center justify-center">
+                        <svg viewBox="0 0 460 110" className="w-full max-w-[460px] h-auto select-none">
+                          <defs>
+                            <marker
+                              id="arrow-live-pdm"
+                              viewBox="0 0 10 10"
+                              refX="9"
+                              refY="5"
+                              markerWidth="6"
+                              markerHeight="6"
+                              orient="auto-start-reverse"
+                            >
+                              <path d="M 0 1 L 10 5 L 0 9 z" fill="#F26522" />
+                            </marker>
+                          </defs>
+
+                          {/* Predecessor Box */}
+                          <g transform="translate(15, 20)">
+                            <rect width="140" height="70" rx="8" fill="#F4F5F0" stroke="#151515" strokeWidth="2" />
+                            <rect x="0" y="0" width="30" height="24" rx="6" fill="#151515" />
+                            <text x="15" y="16" textAnchor="middle" className="text-xs font-mono font-bold fill-white">
+                              {livePredecessorAct?.id}
+                            </text>
+                            <text x="38" y="16" className="text-xs font-bold fill-ink-primary truncate">
+                              {livePredecessorAct?.name.substring(0, 12)}
+                            </text>
+                            <line x1="0" y1="26" x2="140" y2="26" stroke="#E5E6DE" strokeWidth="1" />
+                            <text x="10" y="44" className="text-[10px] font-mono fill-ink-muted">
+                              Duration: {livePredecessorAct?.duration}d
+                            </text>
+                            <text x="10" y="60" className="text-[10px] font-mono font-bold fill-ink-primary">
+                              ES:{liveMathDerivation.pES} &bull; EF:{liveMathDerivation.pEF}
+                            </text>
+                          </g>
+
+                          {/* Connecting Bezier Connector Arc */}
+                          <path
+                            d={
+                              liveRelType === 'FS'
+                                ? 'M 155 55 C 220 55, 240 55, 303 55'
+                                : liveRelType === 'SS'
+                                ? 'M 15 55 C -5 55, 260 20, 303 35'
+                                : liveRelType === 'FF'
+                                ? 'M 155 75 C 240 95, 280 85, 445 75'
+                                : 'M 15 55 C 100 100, 350 100, 445 75'
+                            }
+                            fill="none"
+                            stroke="#F26522"
+                            strokeWidth="2.5"
+                            markerEnd="url(#arrow-live-pdm)"
+                          />
+
+                          {/* Relationship Badge on Line */}
+                          <g transform="translate(205, 38)">
+                            <rect width="70" height="24" rx="12" fill="#151515" />
+                            <text x="35" y="16" textAnchor="middle" className="text-[10px] font-mono font-bold fill-white">
+                              {liveRelType} {liveLag > 0 ? `+${liveLag}d` : liveLag < 0 ? `${liveLag}d` : ''}
+                            </text>
+                          </g>
+
+                          {/* Successor Box */}
+                          <g transform="translate(305, 20)">
+                            <rect width="140" height="70" rx="8" fill="#FFFFFF" stroke="#F26522" strokeWidth="2.5" />
+                            <rect x="0" y="0" width="30" height="24" rx="6" fill="#F26522" />
+                            <text x="15" y="16" textAnchor="middle" className="text-xs font-mono font-bold fill-white">
+                              {liveSuccessorAct?.id}
+                            </text>
+                            <text x="38" y="16" className="text-xs font-bold fill-ink-primary truncate">
+                              {liveSuccessorAct?.name.substring(0, 12)}
+                            </text>
+                            <line x1="0" y1="26" x2="140" y2="26" stroke="#E5E6DE" strokeWidth="1" />
+                            <text x="10" y="44" className="text-[10px] font-mono fill-ink-muted">
+                              Duration: {liveSuccessorAct?.duration}d
+                            </text>
+                            <text x="10" y="60" className="text-[10px] font-mono font-bold fill-brand">
+                              Feasible ES ≥ Day {liveMathDerivation.reqStart}
+                            </text>
+                          </g>
+                        </svg>
+                      </div>
+
+                      {/* Causal Explanation Box */}
+                      <div className="bg-white p-3.5 rounded-lg border border-border text-xs space-y-1.5 font-mono">
+                        <div className="font-bold text-ink-primary">{liveMathDerivation.formula}</div>
+                        <p className="text-ink-secondary font-sans text-xs">{liveMathDerivation.description}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="py-8 text-center text-xs text-ink-muted">
+                      Select both a successor and predecessor to generate the relationship preview.
+                    </div>
+                  )}
+                </div>
+
+                {/* Current Dependencies Table for the Selected Successor */}
+                <div className="p-4 rounded-xl border border-border bg-white">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-bold text-ink-primary">
+                      Configured Predecessors of Activity {liveSuccessorAct?.id} ({liveSuccessorAct?.name})
+                    </span>
+                    <span className="text-[10px] font-mono text-ink-muted">
+                      {currentSuccessorRelations.length} predecessor{currentSuccessorRelations.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+
+                  {currentSuccessorRelations.length === 0 ? (
+                    <div className="p-4 rounded-lg bg-warm border border-border text-xs text-ink-muted text-center italic">
+                      Activity {liveSuccessorAct?.id} has no predecessors (Root project starter, starts on Day 1).
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {currentSuccessorRelations.map(rel => {
+                        const pAct = currentActivities.find(a => a.id === rel.predecessorId);
+                        return (
+                          <div
+                            key={rel.predecessorId}
+                            className="flex items-center justify-between p-2.5 rounded-lg bg-warm border border-border text-xs"
+                          >
+                            <div className="flex items-center space-x-2">
+                              <span className="w-5 h-5 rounded bg-ink-primary text-white inline-flex items-center justify-center font-mono font-bold text-[10px]">
+                                {rel.predecessorId}
+                              </span>
+                              <span className="font-semibold text-ink-primary">{pAct?.name || rel.predecessorId}</span>
+                              <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-white border border-border text-brand font-bold">
+                                {rel.type || 'FS'}
+                                {typeof rel.lag === 'number' && rel.lag !== 0
+                                  ? rel.lag > 0
+                                    ? ` +${rel.lag}d`
+                                    : ` ${rel.lag}d`
+                                  : ''}
+                              </span>
+                              {rel.classification && (
+                                <span className="text-[10px] text-ink-secondary">
+                                  ({rel.classification})
+                                </span>
+                              )}
+                            </div>
+
+                            <button
+                              onClick={() => handleRemoveLiveDependency(rel.predecessorId)}
+                              className="p-1 rounded text-ink-muted hover:text-critical hover:bg-critical-light transition-colors"
+                              title={`Remove ${rel.predecessorId} as predecessor`}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2: GUIDED PDM CONCEPT DEMO (A/B MODEL) */}
+        {activeTab === 'pdmLab' && (
           <div className="bg-white rounded-xl border border-border p-6 sm:p-8 mb-10 shadow-xs">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
               <div>
@@ -362,30 +868,32 @@ export const DependencyRelationshipLab: React.FC = () => {
 
                 <div className="bg-white p-4 rounded-lg border border-border shadow-xs">
                   <span className="font-bold text-ink-primary block mb-1">
-                    University Case Scenario Application:
+                    Classroom Example Application:
                   </span>
                   <p className="text-ink-secondary leading-relaxed">
                     {currentRel.universityExample}
                   </p>
                   <div className="mt-2 text-xs text-ink-muted italic">
-                    Note: In our primary University Management System, all baseline dependencies are modeled as Finish-to-Start (FS).
+                    Note: In our primary University Management System, baseline dependencies are modeled as Finish-to-Start (FS).
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        ) : (
-          /* Tab 2: Actual University Project Case Dependency Registry */
+        )}
+
+        {/* TAB 3: PROJECT DEPENDENCY REGISTRY & TAXONOMY */}
+        {activeTab === 'registry' && (
           <div className="bg-white rounded-xl border border-border p-6 sm:p-8 mb-10 shadow-xs">
             <div className="mb-6">
               <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">
-                University Management System
+                {activeProject.name}
               </span>
               <h3 className="text-xl font-bold text-ink-primary mt-1">
                 Live Project Dependency Registry &amp; Fast-Tracking Analysis
               </h3>
               <p className="text-xs sm:text-sm text-ink-secondary mt-0.5">
-                Inspect the exact dependency classification and fast-tracking feasibility for all six activities in our case study.
+                Inspect the dependency classification and fast-tracking feasibility for all activities in {activeProject.name}.
               </p>
             </div>
 
@@ -397,191 +905,193 @@ export const DependencyRelationshipLab: React.FC = () => {
                     <th className="py-2.5 px-3">Immediate Predecessors</th>
                     <th className="py-2.5 px-3">Relationship Type</th>
                     <th className="py-2.5 px-3">Classification</th>
-                    <th className="py-2.5 px-3">Academic Rationale</th>
+                    <th className="py-2.5 px-3">ES / EF</th>
                     <th className="py-2.5 px-3 text-center">Fast-Trackable?</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border text-xs sm:text-sm">
-                  {REAL_DEPENDENCY_REGISTRY.map(row => (
-                    <tr key={row.id} className="hover:bg-warm transition-colors">
-                      <td className="py-3 px-3 font-bold text-ink-primary flex items-center space-x-2">
-                        <span className="w-6 h-6 rounded bg-ink-primary text-white inline-flex items-center justify-center font-mono text-xs">
-                          {row.id}
-                        </span>
-                        <span>{row.name}</span>
-                      </td>
-                      <td className="py-3 px-3 text-ink-secondary font-mono">{row.pred}</td>
-                      <td className="py-3 px-3 font-mono font-medium text-ink-primary">{row.type}</td>
-                      <td className="py-3 px-3">
-                        <span
-                          className={`text-[11px] px-2 py-0.5 rounded font-semibold ${
-                            row.classification === 'Mandatory'
-                              ? 'bg-critical-light text-critical'
-                              : row.classification === 'Discretionary'
-                              ? 'bg-warm text-ink-primary border border-border'
-                              : row.classification === 'External'
-                              ? 'bg-warning-light text-warning'
-                              : 'bg-warm text-ink-primary'
-                          }`}
-                        >
-                          {row.classification}
-                        </span>
-                      </td>
-                      <td className="py-3 px-3 text-ink-secondary leading-relaxed">{row.justification}</td>
-                      <td className="py-3 px-3 text-center">
-                        {row.fastTrackingFeasible ? (
-                          <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded bg-success-light text-success font-semibold text-[11px]">
-                            <Zap className="w-3 h-3" />
-                            <span>Yes (Soft Logic)</span>
+                  {currentActivities.map(act => {
+                    const relations = normalizeActivityDependencies(act);
+                    const predLabels =
+                      relations.length === 0
+                        ? 'None (Root Node)'
+                        : relations.map(r => `${r.predecessorId}${r.type !== 'FS' ? ` (${r.type})` : ''}`).join(', ');
+
+                    const relTypeLabel =
+                      relations.length === 0
+                        ? '—'
+                        : Array.from(new Set(relations.map(r => r.type))).join(', ');
+
+                    const classLabel =
+                      relations[0]?.classification || (relations.length === 0 ? 'Internal' : 'Mandatory');
+
+                    const isFastTrackable = classLabel === 'Discretionary';
+
+                    return (
+                      <tr key={act.id} className="hover:bg-warm transition-colors">
+                        <td className="py-3 px-3 font-bold text-ink-primary flex items-center space-x-2">
+                          <span className="w-6 h-6 rounded bg-ink-primary text-white inline-flex items-center justify-center font-mono text-xs">
+                            {act.id}
                           </span>
-                        ) : (
-                          <span className="text-ink-muted text-[11px]">No (Hard/Fixed)</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                          <span>{act.name}</span>
+                        </td>
+                        <td className="py-3 px-3 text-ink-secondary font-mono">{predLabels}</td>
+                        <td className="py-3 px-3 font-mono font-medium text-ink-primary">{relTypeLabel}</td>
+                        <td className="py-3 px-3">
+                          <span
+                            className={`text-[11px] px-2 py-0.5 rounded font-semibold ${
+                              classLabel === 'Mandatory'
+                                ? 'bg-critical-light text-critical'
+                                : classLabel === 'Discretionary'
+                                ? 'bg-warm text-ink-primary border border-border'
+                                : classLabel === 'External'
+                                ? 'bg-warning-light text-warning'
+                                : 'bg-warm text-ink-primary'
+                            }`}
+                          >
+                            {classLabel}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 font-mono text-xs text-ink-secondary">
+                          Day {schedule.activities[act.id]?.es ?? 1} → Day {schedule.activities[act.id]?.ef ?? act.duration}
+                        </td>
+                        <td className="py-3 px-3 text-center">
+                          {isFastTrackable ? (
+                            <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded bg-success-light text-success font-semibold text-[11px]">
+                              <Zap className="w-3 h-3" />
+                              <span>Yes (Soft Logic)</span>
+                            </span>
+                          ) : (
+                            <span className="text-ink-muted text-[11px]">No (Hard/Fixed)</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
 
             <div className="mt-5 p-4 bg-warm rounded-lg border border-border text-xs text-ink-secondary leading-relaxed">
-              <strong className="text-ink-primary">Why Discretionary dependencies matter for schedule recovery:</strong> When a project is delayed, project managers cannot violate mandatory physical dependencies (you cannot build code before designing it). They must evaluate <strong>Discretionary Dependencies</strong> (e.g. Activity E Testing &rarr; Activity F Training) and decide if accepting higher rework risk allows starting them in parallel (Fast-Tracking).
-            </div>
-
-            {/* Interactive Topology & Cycle Rejection Tester */}
-            <div className="mt-6 pt-5 border-t border-border">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">
-                    Live Engine Interaction
-                  </span>
-                  <h4 className="text-sm font-bold text-ink-primary">
-                    Test Dependency Modification &amp; Cycle Rejection
-                  </h4>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2.5">
-                <button
-                  onClick={() => {
-                    updateActivityDependencies('A', ['F']);
-                  }}
-                  className="px-3.5 py-1.5 rounded-md text-xs font-semibold bg-critical-light text-critical border border-critical-border hover:bg-critical/10 transition-all flex items-center space-x-1.5 shadow-xs"
-                  title="Tests Kahn's algorithm cycle detection"
-                >
-                  <AlertCircle className="w-3.5 h-3.5" />
-                  <span>Test Cycle Rejection (Make A depend on F)</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    resetToBaseline();
-                  }}
-                  className="px-3.5 py-1.5 rounded-md text-xs font-semibold bg-warm border border-border hover:bg-surface-secondary text-ink-primary transition-all flex items-center space-x-1.5 shadow-xs"
-                >
-                  <RotateCcw className="w-3.5 h-3.5 text-ink-secondary" />
-                  <span>Reset to Baseline Logic</span>
-                </button>
-              </div>
+              <strong className="text-ink-primary">Why Discretionary dependencies matter for schedule recovery:</strong> When a project is delayed, project managers cannot violate mandatory physical dependencies (you cannot build code before designing it). They must evaluate <strong>Discretionary Dependencies</strong> and decide if accepting higher rework risk allows starting them in parallel (Fast-Tracking).
             </div>
           </div>
         )}
 
-        {/* The 4 Dependency Classifications */}
-        <div className="bg-white rounded-xl border border-border p-6 sm:p-8 shadow-xs">
-          <div className="mb-6">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">
-              Academic Taxonomy
-            </span>
-            <h3 className="text-xl font-bold text-ink-primary">
-              The 4 Dependency Classifications (Kathy Schwalbe 9th Ed.)
-            </h3>
-            <p className="text-xs sm:text-sm text-ink-secondary mt-0.5">
-              Understanding why an activity depends on another determines how much flexibility a project manager possesses when fast-tracking the schedule.
-            </p>
+        {/* The 4 Dependency Classifications & Audience Challenge (Progressive Disclosure) */}
+        <div className="bg-white rounded-xl border border-border p-5 sm:p-6 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center space-x-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">
+                  Academic Taxonomy
+                </span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded bg-warm text-ink-secondary border border-border">
+                  PMBOK 7th Ed.
+                </span>
+              </div>
+              <h3 className="text-base sm:text-lg font-bold text-ink-primary mt-0.5">
+                The 4 Dependency Classifications &amp; Logic Origins
+              </h3>
+              <p className="text-xs text-ink-secondary mt-0.5">
+                Mandatory, Discretionary, External, and Internal logic boundaries.
+              </p>
+            </div>
+
+            <button
+              onClick={() => setShowTaxonomy(prev => !prev)}
+              className="px-3.5 py-2 rounded-lg text-xs font-semibold bg-warm hover:bg-border text-ink-primary transition-colors flex items-center space-x-1.5 self-start sm:self-auto"
+            >
+              <span>{showTaxonomy ? 'Hide Classifications & Challenge' : 'Explore 4 Classifications & Challenge'}</span>
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showTaxonomy ? 'rotate-180' : ''}`} />
+            </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            {DEPENDENCY_CLASSIFICATIONS_DATA.map(item => {
-              const isSelected = selectedClassification === item.type;
-              return (
-                <div
-                  key={item.type}
-                  onClick={() => setSelectedClassification(item.type)}
-                  className={`p-4 rounded-lg border cursor-pointer transition-all ${
-                    isSelected
-                      ? 'border-ink-primary bg-warm shadow-xs'
-                      : 'border-border bg-white hover:border-border-strong'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">
-                      {item.category}
-                    </span>
-                    <span
-                      className={`text-[10px] px-2 py-0.5 rounded font-semibold ${
-                        item.type === 'Mandatory'
-                          ? 'bg-critical-light text-critical'
-                          : item.type === 'Discretionary'
-                          ? 'bg-warm text-ink-primary border border-border'
-                          : 'bg-warning-light text-warning'
+          {showTaxonomy && (
+            <div className="pt-6 mt-6 border-t border-border animate-in fade-in duration-200">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                {DEPENDENCY_CLASSIFICATIONS_DATA.map(item => {
+                  const isSelected = selectedClassification === item.type;
+                  return (
+                    <div
+                      key={item.type}
+                      onClick={() => setSelectedClassification(item.type)}
+                      className={`p-4 rounded-lg border cursor-pointer transition-all ${
+                        isSelected
+                          ? 'border-ink-primary bg-warm shadow-xs'
+                          : 'border-border bg-white hover:border-border-strong'
                       }`}
                     >
-                      {item.nature}
-                    </span>
-                  </div>
-                  <h4 className="font-bold text-sm text-ink-primary">{item.name}</h4>
-                  <p className="mt-2 text-xs text-ink-secondary leading-relaxed">
-                    {item.definition}
-                  </p>
-                  <div className="mt-3 pt-2.5 border-t border-border text-xs text-ink-primary">
-                    <strong className="text-ink-secondary">Real-world:</strong> {item.projectExample}
-                  </div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">
+                          {item.category}
+                        </span>
+                        <span
+                          className={`text-[10px] px-2 py-0.5 rounded font-semibold ${
+                            item.type === 'Mandatory'
+                              ? 'bg-critical-light text-critical'
+                              : item.type === 'Discretionary'
+                              ? 'bg-warm text-ink-primary border border-border'
+                              : 'bg-warning-light text-warning'
+                          }`}
+                        >
+                          {item.nature}
+                        </span>
+                      </div>
+                      <h4 className="font-bold text-sm text-ink-primary">{item.name}</h4>
+                      <p className="mt-2 text-xs text-ink-secondary leading-relaxed">
+                        {item.definition}
+                      </p>
+                      <div className="mt-3 pt-2.5 border-t border-border text-xs text-ink-primary">
+                        <strong className="text-ink-secondary">Real-world:</strong> {item.projectExample}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Audience Interactive Mini-Challenge */}
+              <div className="bg-warm rounded-lg p-5 border border-border">
+                <div className="flex items-center space-x-2 mb-2">
+                  <HelpCircle className="w-4 h-4 text-brand" />
+                  <span className="text-[10px] font-bold text-ink-muted uppercase tracking-wider">
+                    Audience Engagement: Classify the Dependency
+                  </span>
                 </div>
-              );
-            })}
-          </div>
+                <p className="text-xs sm:text-sm text-ink-secondary mb-4 leading-relaxed">
+                  &ldquo;The University Registrar requires that student data cannot be migrated to the new database until the state data compliance inspector signs off on the encryption protocol.&rdquo; Which classification is this?
+                </p>
 
-          {/* Audience Interactive Mini-Challenge */}
-          <div className="bg-warm rounded-lg p-5 border border-border">
-            <div className="flex items-center space-x-2 mb-2">
-              <HelpCircle className="w-4 h-4 text-brand" />
-              <span className="text-[10px] font-bold text-ink-muted uppercase tracking-wider">
-                Audience Engagement: Classify the Dependency
-              </span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  {[
+                    { id: 'ext', label: 'External Dependency', correct: true, note: 'Correct! The state inspector is an external entity outside the project team\'s direct control.' },
+                    { id: 'man', label: 'Mandatory Internal', correct: false, note: 'Incorrect. While mandatory, the constraint originates outside project jurisdiction.' },
+                    { id: 'disc', label: 'Discretionary Dependency', correct: false, note: 'Incorrect. Regulatory compliance is not optional preferential best practice.' },
+                    { id: 'sf', label: 'Start-to-Finish Relationship', correct: false, note: 'Incorrect. That is a relationship type, not a dependency classification!' },
+                  ].map(choice => (
+                    <button
+                      key={choice.id}
+                      onClick={() => setClassQuizSelection(choice.id)}
+                      className={`p-3 rounded-lg border text-xs font-medium text-left transition-all ${
+                        classQuizSelection === choice.id
+                          ? choice.correct
+                            ? 'bg-success-light border-success text-success font-semibold'
+                            : 'bg-critical-light border-critical text-critical font-semibold'
+                          : 'bg-white hover:bg-surface-secondary border-border text-ink-primary'
+                      }`}
+                    >
+                      <div className="font-semibold">{choice.label}</div>
+                      {classQuizSelection === choice.id && (
+                        <p className="text-[11px] mt-1.5 font-normal opacity-90 leading-tight">
+                          {choice.note}
+                        </p>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
-            <p className="text-xs sm:text-sm text-ink-secondary mb-4 leading-relaxed">
-              &ldquo;The University Registrar requires that student data cannot be migrated to the new database until the state data compliance inspector signs off on the encryption protocol.&rdquo; Which classification is this?
-            </p>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-              {[
-                { id: 'ext', label: 'External Dependency', correct: true, note: 'Correct! The state inspector is an external entity outside the project team\'s direct control.' },
-                { id: 'man', label: 'Mandatory Internal', correct: false, note: 'Incorrect. While mandatory, the constraint originates outside project jurisdiction.' },
-                { id: 'disc', label: 'Discretionary Dependency', correct: false, note: 'Incorrect. Regulatory compliance is not optional preferential best practice.' },
-                { id: 'sf', label: 'Start-to-Finish Relationship', correct: false, note: 'Incorrect. That is a relationship type, not a dependency classification!' },
-              ].map(choice => (
-                <button
-                  key={choice.id}
-                  onClick={() => setClassQuizSelection(choice.id)}
-                  className={`p-3 rounded-lg border text-xs font-medium text-left transition-all ${
-                    classQuizSelection === choice.id
-                      ? choice.correct
-                        ? 'bg-success-light border-success text-success font-semibold'
-                        : 'bg-critical-light border-critical text-critical font-semibold'
-                      : 'bg-white hover:bg-surface-secondary border-border text-ink-primary'
-                  }`}
-                >
-                  <div className="font-semibold">{choice.label}</div>
-                  {classQuizSelection === choice.id && (
-                    <p className="text-[11px] mt-1.5 font-normal opacity-90 leading-tight">
-                      {choice.note}
-                    </p>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </section>

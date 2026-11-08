@@ -9,19 +9,30 @@ import {
   Wrench,
   PackageCheck,
   ChevronRight,
+  ChevronLeft,
   BookOpen,
-  HelpCircle,
   ArrowRight,
+  Sparkles,
+  Layers,
 } from 'lucide-react';
 
 export const ScheduleProcessExplorer: React.FC = () => {
-  const [selectedStep, setSelectedStep] = useState<ProcessStep>(SCHEDULE_PROCESSES[0]);
-  const [quizAnswer, setQuizAnswer] = useState<string | null>(null);
+  const [selectedStepIndex, setSelectedStepIndex] = useState<number>(0);
+  const [showDetailedIto, setShowDetailedIto] = useState<boolean>(false);
 
   const chapter3 = CHAPTERS_DATA[2];
+  const selectedStep = SCHEDULE_PROCESSES[selectedStepIndex] || SCHEDULE_PROCESSES[0];
+
+  const handleNext = () => {
+    setSelectedStepIndex(prev => (prev + 1) % SCHEDULE_PROCESSES.length);
+  };
+
+  const handlePrev = () => {
+    setSelectedStepIndex(prev => (prev - 1 + SCHEDULE_PROCESSES.length) % SCHEDULE_PROCESSES.length);
+  };
 
   return (
-    <section id="chapter-03" className="w-full bg-white py-16 lg:py-20 border-b border-border scroll-mt-20">
+    <section id="chapter-03" className="w-full bg-white py-14 lg:py-16 border-b border-border scroll-mt-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <ChapterHeader
           chapter={chapter3}
@@ -41,50 +52,70 @@ export const ScheduleProcessExplorer: React.FC = () => {
           audiencePrompt="Which process is responsible for identifying that Development cannot begin until both System Design and Database Design are complete?"
         />
 
-        {/* Main Interactive Process Stepper Studio */}
-        <div className="bg-warm rounded-xl border border-border p-6 sm:p-8 mb-8 shadow-xs">
+        {/* Visual Stepper Journey Header */}
+        <div className="bg-warm rounded-2xl border border-border p-6 sm:p-8 mb-8 shadow-xs">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">
-                Interactive Component &bull; Process 0{selectedStep.stepNumber} of 06
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-ink-muted">
+                Sequential Workflow Journey &bull; Stage 0{selectedStep.stepNumber} of 06
               </span>
               <h3 className="text-xl font-bold text-ink-primary mt-0.5">
-                The Six Schedule Management Processes
+                The 6 Schedule Management Processes
               </h3>
-              <p className="text-xs sm:text-sm text-ink-secondary mt-0.5">
-                Select any PMBOK process to inspect its inputs, techniques, outputs, and case study application.
-              </p>
             </div>
 
-            <span className="text-xs font-mono font-semibold px-2.5 py-1 rounded bg-white border border-border text-ink-primary self-start sm:self-auto">
-              Stage 0{selectedStep.stepNumber} Active
-            </span>
+            {/* Stepper Navigation Buttons */}
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={handlePrev}
+                className="p-1.5 rounded-lg border border-border bg-white text-ink-secondary hover:text-ink-primary hover:bg-warm transition-colors"
+                title="Previous process"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-xs font-mono font-bold text-ink-primary px-2">
+                0{selectedStep.stepNumber} / 06
+              </span>
+              <button
+                onClick={handleNext}
+                className="p-1.5 rounded-lg border border-border bg-white text-ink-secondary hover:text-ink-primary hover:bg-warm transition-colors"
+                title="Next process"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
-          {/* Process Step Selector Track */}
+          {/* Horizontal Visual Process Sequence (Desktop) / Grid (Mobile) */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mb-6">
-            {SCHEDULE_PROCESSES.map(step => {
-              const isSelected = selectedStep.id === step.id;
+            {SCHEDULE_PROCESSES.map((step, idx) => {
+              const isSelected = selectedStepIndex === idx;
+              const isPast = idx < selectedStepIndex;
+
               return (
                 <button
                   key={step.id}
-                  onClick={() => setSelectedStep(step)}
-                  className={`p-3 rounded-lg border text-left transition-all ${
+                  onClick={() => setSelectedStepIndex(idx)}
+                  className={`p-3 rounded-xl border text-left transition-all relative ${
                     isSelected
-                      ? 'bg-ink-primary text-white border-ink-primary shadow-xs'
-                      : 'bg-white hover:bg-surface-secondary text-ink-primary border-border'
+                      ? 'bg-ink-primary text-white border-ink-primary shadow-xs ring-2 ring-ink-primary/20 scale-[1.02]'
+                      : isPast
+                      ? 'bg-white text-ink-primary border-border hover:border-ink-secondary'
+                      : 'bg-white/70 text-ink-muted border-border hover:text-ink-secondary'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <span className={`text-[10px] font-mono font-bold ${isSelected ? 'text-white/70' : 'text-ink-muted'}`}>
+                    <span className={`text-[10px] font-mono font-bold ${isSelected ? 'text-brand' : 'text-ink-muted'}`}>
                       0{step.stepNumber}
                     </span>
-                    {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-brand"></span>}
+                    {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse" />}
+                    {isPast && <CheckCircle2 className="w-3 h-3 text-success shrink-0" />}
                   </div>
+
                   <div className={`text-xs font-bold truncate ${isSelected ? 'text-white' : 'text-ink-primary'}`}>
                     {step.shortTag}
                   </div>
-                  <div className={`text-[11px] truncate mt-0.5 ${isSelected ? 'text-white/80' : 'text-ink-secondary'}`}>
+                  <div className={`text-[10px] truncate mt-0.5 ${isSelected ? 'text-white/80' : 'text-ink-secondary'}`}>
                     {step.name}
                   </div>
                 </button>
@@ -92,156 +123,112 @@ export const ScheduleProcessExplorer: React.FC = () => {
             })}
           </div>
 
-          {/* Selected Process Detail Canvas */}
-          <div className="bg-white rounded-lg p-5 sm:p-6 border border-border shadow-xs">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 border-b border-border">
+          {/* Selected Stage Spotlight Card (Concise & Focused) */}
+          <div className="bg-white rounded-xl p-6 border border-border shadow-xs transition-all">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-5 border-b border-border">
               <div>
                 <div className="flex items-center space-x-2">
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-ink-primary text-white">
-                    PROCESS 0{selectedStep.stepNumber}
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-brand-light text-brand border border-brand-border">
+                    STAGE 0{selectedStep.stepNumber}
                   </span>
-                  <h4 className="text-lg font-bold text-ink-primary">
-                    {selectedStep.name}
-                  </h4>
+                  <span className="text-[10px] font-mono text-ink-muted">PMBOK 6.{selectedStep.stepNumber}</span>
                 </div>
-                <p className="mt-2 text-xs sm:text-sm text-ink-secondary max-w-3xl leading-relaxed">
+                <h4 className="text-xl font-bold text-ink-primary mt-1">
+                  {selectedStep.name}
+                </h4>
+                <p className="mt-2 text-xs sm:text-sm text-ink-secondary max-w-2xl leading-relaxed">
                   {selectedStep.definition}
                 </p>
               </div>
 
-              <div className="p-3.5 bg-warm rounded-lg border border-border text-xs max-w-sm shrink-0">
-                <span className="font-bold text-ink-primary block mb-1 flex items-center space-x-1.5 text-xs">
-                  <BookOpen className="w-3.5 h-3.5 text-brand" />
-                  <span>Why This Step Matters:</span>
+              {/* Primary Output Highlight Pill */}
+              <div className="p-4 rounded-xl bg-warm border border-border shrink-0 max-w-xs">
+                <span className="text-[9px] font-mono uppercase font-bold text-ink-muted block mb-1">
+                  Core Output &amp; Deliverable
                 </span>
-                <p className="text-ink-secondary leading-relaxed">
+                <span className="font-bold text-xs text-ink-primary block">
+                  {selectedStep.primaryOutputs[0] || 'Schedule Baseline'}
+                </span>
+                <span className="text-[11px] text-ink-secondary mt-1 block">
                   {selectedStep.whyImportant}
-                </p>
+                </span>
               </div>
             </div>
 
-            {/* Inputs, Tools, Outputs Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 my-5">
-              <div className="bg-warm p-4 rounded-lg border border-border">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted flex items-center space-x-1.5 mb-2.5">
-                  <FileText className="w-3.5 h-3.5 text-ink-primary" />
-                  <span>Key Inputs</span>
+            {/* Progressive Disclosure: Inputs, Tools & Outputs (ITTOs) */}
+            <div className="mt-5">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-ink-muted">
+                  Process Mechanics (ITTOs)
                 </span>
-                <ul className="text-xs text-ink-secondary space-y-1.5">
-                  {selectedStep.inputs.map((inp, idx) => (
-                    <li key={idx} className="flex items-start space-x-2">
-                      <span className="text-ink-muted font-bold">&bull;</span>
-                      <span>{inp}</span>
-                    </li>
-                  ))}
-                </ul>
+                <button
+                  onClick={() => setShowDetailedIto(prev => !prev)}
+                  className="text-xs font-semibold text-brand hover:text-brand-hover transition-colors flex items-center space-x-1"
+                >
+                  <span>{showDetailedIto ? 'Hide Detailed ITTOs' : 'Reveal Full Inputs, Tools & Outputs'}</span>
+                </button>
               </div>
 
-              <div className="bg-warm p-4 rounded-lg border border-border">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted flex items-center space-x-1.5 mb-2.5">
-                  <Wrench className="w-3.5 h-3.5 text-brand" />
-                  <span>Tools &amp; Techniques</span>
-                </span>
-                <ul className="text-xs text-ink-secondary space-y-1.5">
-                  {selectedStep.toolsAndTechniques.map((tool, idx) => (
-                    <li key={idx} className="flex items-start space-x-2">
-                      <span className="text-brand font-bold">&bull;</span>
-                      <span>{tool}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              {showDetailedIto ? (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 text-xs animate-in fade-in duration-200">
+                  <div className="bg-warm p-3.5 rounded-lg border border-border">
+                    <span className="font-bold text-ink-primary flex items-center space-x-1.5 mb-2">
+                      <FileText className="w-3.5 h-3.5 text-ink-secondary" />
+                      <span>Key Inputs</span>
+                    </span>
+                    <ul className="space-y-1 text-ink-secondary text-[11px]">
+                      {selectedStep.inputs.map((inp, i) => (
+                        <li key={i} className="flex items-start space-x-1.5">
+                          <span className="text-ink-muted font-bold">&bull;</span>
+                          <span>{inp}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
 
-              <div className="bg-warm p-4 rounded-lg border border-border">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted flex items-center space-x-1.5 mb-2.5">
-                  <PackageCheck className="w-3.5 h-3.5 text-success" />
-                  <span>Primary Outputs</span>
-                </span>
-                <ul className="text-xs text-ink-secondary space-y-1.5">
-                  {selectedStep.primaryOutputs.map((out, idx) => (
-                    <li key={idx} className="flex items-start space-x-2">
-                      <span className="text-success font-bold">&bull;</span>
-                      <span className="font-semibold text-ink-primary">{out}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
+                  <div className="bg-warm p-3.5 rounded-lg border border-border">
+                    <span className="font-bold text-ink-primary flex items-center space-x-1.5 mb-2">
+                      <Wrench className="w-3.5 h-3.5 text-brand" />
+                      <span>Tools &amp; Techniques</span>
+                    </span>
+                    <ul className="space-y-1 text-ink-secondary text-[11px]">
+                      {selectedStep.toolsAndTechniques.map((tool, i) => (
+                        <li key={i} className="flex items-start space-x-1.5">
+                          <span className="text-brand font-bold">&bull;</span>
+                          <span>{tool}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
 
-            {/* University Example & Next Handoff */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-4 border-t border-border text-xs">
-              <div className="bg-warm p-4 rounded-lg border border-border">
-                <span className="font-bold text-xs text-ink-primary block mb-1">
-                  Real Case Study Application:
-                </span>
-                <p className="text-ink-secondary leading-relaxed">
-                  {selectedStep.universityExample}
-                </p>
-              </div>
-
-              <div className="bg-warm p-4 rounded-lg border border-border flex items-start justify-between">
-                <div>
-                  <span className="font-bold text-xs text-brand block mb-1">
-                    Logical Handoff to Next Process:
-                  </span>
-                  <p className="text-ink-secondary leading-relaxed">
-                    {selectedStep.nextStepConnection}
-                  </p>
+                  <div className="bg-warm p-3.5 rounded-lg border border-border">
+                    <span className="font-bold text-ink-primary flex items-center space-x-1.5 mb-2">
+                      <PackageCheck className="w-3.5 h-3.5 text-success" />
+                      <span>Key Outputs</span>
+                    </span>
+                    <ul className="space-y-1 text-ink-secondary text-[11px]">
+                      {selectedStep.primaryOutputs.map((out, i) => (
+                        <li key={i} className="flex items-start space-x-1.5">
+                          <span className="text-success font-bold">&bull;</span>
+                          <span>{out}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
-                {selectedStep.stepNumber < 6 && (
-                  <button
-                    onClick={() => setSelectedStep(SCHEDULE_PROCESSES[selectedStep.stepNumber])}
-                    className="mt-1 ml-2 p-1.5 rounded-md bg-white text-ink-primary hover:bg-warm border border-border transition-colors shrink-0 shadow-xs"
-                    title="Advance to next process"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Classroom Engagement Quiz Card */}
-        <div className="bg-warm rounded-xl p-6 border border-border shadow-xs">
-          <div className="flex items-center space-x-2 mb-2">
-            <HelpCircle className="w-4 h-4 text-brand" />
-            <span className="text-[10px] font-bold text-ink-muted uppercase tracking-wider">
-              Classroom Quick Check &bull; Member 1
-            </span>
-          </div>
-          <p className="text-xs sm:text-sm font-semibold text-ink-primary mb-4">
-            If project stakeholders demand an earlier completion date, which process owns evaluating schedule compression techniques (crashing &amp; fast-tracking) to update the baseline?
-          </p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {[
-              { id: 'opt1', text: 'Define Activities', correct: false, note: 'Define Activities produces the activity list, not schedule models.' },
-              { id: 'opt2', text: 'Develop Schedule', correct: true, note: 'Correct! Develop Schedule applies CPM, crashing, and fast-tracking to establish the baseline.' },
-              { id: 'opt3', text: 'Sequence Activities', correct: false, note: 'Sequence Activities determines dependency logic, not duration tradeoffs.' },
-            ].map(opt => (
-              <button
-                key={opt.id}
-                onClick={() => setQuizAnswer(opt.id)}
-                className={`p-3 rounded-lg border text-left text-xs transition-all ${
-                  quizAnswer === opt.id
-                    ? opt.correct
-                      ? 'bg-success-light border-success text-success font-semibold'
-                      : 'bg-critical-light border-critical text-critical font-semibold'
-                    : 'bg-white hover:bg-surface-secondary border-border text-ink-primary'
-                }`}
-              >
-                <div className="flex items-center justify-between font-semibold">
-                  <span>{opt.text}</span>
-                  {quizAnswer === opt.id && (opt.correct ? '✓ Correct' : '✗ Incorrect')}
+              ) : (
+                <div className="p-3 bg-warm rounded-lg border border-border flex items-center justify-between text-xs text-ink-secondary">
+                  <div className="flex items-center space-x-3">
+                    <span className="text-ink-primary font-medium">
+                      Tools: <strong>{selectedStep.toolsAndTechniques.slice(0, 2).join(', ')}</strong>
+                    </span>
+                    <span className="text-ink-muted">&bull;</span>
+                    <span>Outputs: <strong>{selectedStep.primaryOutputs.slice(0, 2).join(', ')}</strong></span>
+                  </div>
+                  <span className="text-[10px] text-ink-muted font-mono">Click above to expand</span>
                 </div>
-                {quizAnswer === opt.id && (
-                  <p className="text-[11px] mt-1.5 font-normal opacity-90 leading-tight">
-                    {opt.note}
-                  </p>
-                )}
-              </button>
-            ))}
+              )}
+            </div>
           </div>
         </div>
       </div>

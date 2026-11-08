@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useSchedule } from '../../../context/ScheduleContext';
+import { RelationshipType } from '../../../types/scheduling';
 import { CHAPTERS_DATA } from '../../../data/educationalContent';
 import { ChapterHeader } from '../../common/ChapterHeader';
 import { PresenterNotes } from '../../common/PresenterNotes';
 import { LiveDelayAlert } from '../../common/LiveDelayAlert';
+import { ScheduleViewModeBanner } from '../../common/ScheduleViewModeBanner';
+import { computeNetworkNodeLayouts } from '../../../utils/networkLayout';
 import {
   Sparkles,
   Layers,
@@ -20,32 +23,19 @@ import {
   RotateCcw,
   Move,
   AlertCircle,
+  Network,
 } from 'lucide-react';
-
-interface NodeLayout {
-  id: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-const NODE_LAYOUTS: Record<string, NodeLayout> = {
-  A: { id: 'A', x: 60, y: 160, width: 160, height: 96 },
-  B: { id: 'B', x: 290, y: 60, width: 160, height: 96 },
-  C: { id: 'C', x: 290, y: 260, width: 160, height: 96 },
-  D: { id: 'D', x: 520, y: 160, width: 160, height: 96 },
-  E: { id: 'E', x: 750, y: 160, width: 160, height: 96 },
-  F: { id: 'F', x: 960, y: 160, width: 160, height: 96 },
-};
 
 interface EdgeDefinition {
   from: string;
   to: string;
+  type?: RelationshipType;
+  lag?: number;
 }
 
 export const NetworkDiagramExplorer: React.FC = () => {
   const {
+    activeProject,
     schedule,
     selectedActivityId,
     setSelectedActivityId,
@@ -60,6 +50,11 @@ export const NetworkDiagramExplorer: React.FC = () => {
     resetToBaseline,
     isModified,
   } = useSchedule();
+
+  // Dynamic topological layout generation for arbitrary project graphs
+  const { layouts: nodeLayouts, dimensions: canvasDimensions } = useMemo(() => {
+    return computeNetworkNodeLayouts(schedule.activityList);
+  }, [schedule.activityList]);
 
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [hoveredEdge, setHoveredEdge] = useState<EdgeDefinition | null>(null);
@@ -140,17 +135,23 @@ export const NetworkDiagramExplorer: React.FC = () => {
   }, [isTheaterMode, selectedActivityId, schedule.activityList, isDragging, setSelectedActivityId, setHighlightedPathId]);
 
   // Generate dynamic edges from active schedule topology
-  const dynamicEdges = React.useMemo(() => {
+  const dynamicEdges = useMemo(() => {
     const list: EdgeDefinition[] = [];
     schedule.activityList.forEach(act => {
       act.predecessors.forEach(predId => {
-        if (NODE_LAYOUTS[predId] && NODE_LAYOUTS[act.id]) {
-          list.push({ from: predId, to: act.id });
+        if (nodeLayouts[predId] && nodeLayouts[act.id]) {
+          const rel = act.dependencyRelations?.find(r => r.predecessorId === predId);
+          list.push({
+            from: predId,
+            to: act.id,
+            type: rel?.type || 'FS',
+            lag: typeof rel?.lag === 'number' ? rel.lag : 0,
+          });
         }
       });
     });
     return list;
-  }, [schedule.activityList]);
+  }, [schedule.activityList, nodeLayouts]);
 
   // Determine if an edge is critical
   const isEdgeCritical = (from: string, to: string) => {
@@ -177,8 +178,8 @@ export const NetworkDiagramExplorer: React.FC = () => {
 
   // Generate smooth cubic bezier path for an edge with clean arrow tip offset
   const getEdgePath = (fromId: string, toId: string) => {
-    const fromNode = NODE_LAYOUTS[fromId];
-    const toNode = NODE_LAYOUTS[toId];
+    const fromNode = nodeLayouts[fromId];
+    const toNode = nodeLayouts[toId];
     if (!fromNode || !toNode) return '';
 
     const startX = fromNode.x + fromNode.width;
@@ -230,6 +231,9 @@ export const NetworkDiagramExplorer: React.FC = () => {
             onClick={() => setIsTheaterMode(false)}
           />
         )}
+
+        {/* Unified View Mode Banner */}
+        <ScheduleViewModeBanner className="mb-4" />
 
         {/* Main Vector SVG Network Diagram Workspace */}
         <div
@@ -468,8 +472,21 @@ export const NetworkDiagramExplorer: React.FC = () => {
                 <span>
                   {hoveredEdge.from} ({schedule.activities[hoveredEdge.from]?.name}) &rarr; {hoveredEdge.to} ({schedule.activities[hoveredEdge.to]?.name})
                 </span>
-                <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded font-sans uppercase font-bold tracking-wider">
-                  Finish-to-Start (FS)
+                <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded font-sans uppercase font-bold tracking-wider inline-flex items-center space-x-1">
+                  <span>
+                    {hoveredEdge.type === 'SS'
+                      ? 'Start-to-Start (SS)'
+                      : hoveredEdge.type === 'FF'
+                      ? 'Finish-to-Finish (FF)'
+                      : hoveredEdge.type === 'SF'
+                      ? 'Start-to-Finish (SF)'
+                      : 'Finish-to-Start (FS)'}
+                  </span>
+                  {hoveredEdge.lag !== undefined && hoveredEdge.lag !== 0 && (
+                    <span className="text-amber-300 ml-1">
+                      {hoveredEdge.lag > 0 ? `+${hoveredEdge.lag}d lag` : `${hoveredEdge.lag}d lead`}
+                    </span>
+                  )}
                 </span>
               </div>
             )}
@@ -483,76 +500,118 @@ export const NetworkDiagramExplorer: React.FC = () => {
                 transition: isDragging ? 'none' : 'transform 150ms ease-out',
               }}
             >
-              <svg
-                viewBox="0 0 1180 420"
-                className="w-full min-w-[980px] h-auto select-none"
-                style={{ maxHeight: isTheaterMode ? '70vh' : '480px' }}
-              >
-                {/* SVG Definitions: Arrow Markers */}
-                <defs>
-                  <marker
-                    id="arrow-default"
-                    viewBox="0 0 10 10"
-                    refX="9"
-                    refY="5"
-                    markerWidth="7"
-                    markerHeight="7"
-                    orient="auto-start-reverse"
-                  >
-                    <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#92928A" />
-                  </marker>
+              {schedule.activityList.length === 0 ? (
+                <div className="py-24 text-center flex flex-col items-center justify-center">
+                  <div className="w-12 h-12 rounded-xl bg-warm border border-border flex items-center justify-center text-ink-muted mb-3">
+                    <Network className="w-6 h-6 text-brand" />
+                  </div>
+                  <h4 className="text-base font-bold text-ink-primary font-sans">No activities in this project yet</h4>
+                  <p className="text-xs text-ink-secondary mt-1 max-w-sm leading-relaxed">
+                    This project is currently blank. Add activities in the Project Overview or Activity Studio to generate your vector Activity-on-Node precedence graph automatically.
+                  </p>
+                </div>
+              ) : (
+                <svg
+                  viewBox={`0 0 ${canvasDimensions.width} ${canvasDimensions.height}`}
+                  className="w-full h-auto select-none"
+                  style={{
+                    minWidth: `${Math.min(canvasDimensions.width, 1080)}px`,
+                    maxHeight: isTheaterMode ? '70vh' : '520px',
+                  }}
+                >
+                  {/* SVG Definitions: Arrow Markers */}
+                  <defs>
+                    <marker
+                      id="arrow-default"
+                      viewBox="0 0 10 10"
+                      refX="9"
+                      refY="5"
+                      markerWidth="7"
+                      markerHeight="7"
+                      orient="auto-start-reverse"
+                    >
+                      <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#92928A" />
+                    </marker>
 
-                  <marker
-                    id="arrow-critical"
-                    viewBox="0 0 10 10"
-                    refX="9"
-                    refY="5"
-                    markerWidth="8"
-                    markerHeight="8"
-                    orient="auto-start-reverse"
-                  >
-                    <path d="M 0 1 L 9 5 L 0 9 z" fill="#BE645A" />
-                  </marker>
+                    <marker
+                      id="arrow-critical"
+                      viewBox="0 0 10 10"
+                      refX="9"
+                      refY="5"
+                      markerWidth="8"
+                      markerHeight="8"
+                      orient="auto-start-reverse"
+                    >
+                      <path d="M 0 1 L 9 5 L 0 9 z" fill="#BE645A" />
+                    </marker>
 
-                  <marker
-                    id="arrow-highlighted"
-                    viewBox="0 0 10 10"
-                    refX="9"
-                    refY="5"
-                    markerWidth="8"
-                    markerHeight="8"
-                    orient="auto-start-reverse"
-                  >
-                    <path d="M 0 1 L 9 5 L 0 9 z" fill="#151515" />
-                  </marker>
-                </defs>
+                    <marker
+                      id="arrow-highlighted"
+                      viewBox="0 0 10 10"
+                      refX="9"
+                      refY="5"
+                      markerWidth="8"
+                      markerHeight="8"
+                      orient="auto-start-reverse"
+                    >
+                      <path d="M 0 1 L 9 5 L 0 9 z" fill="#151515" />
+                    </marker>
 
-                {/* Structural Badges: Parallel Burst & Merge Convergence */}
-                <g className="font-sans select-none pointer-events-none">
-                  {/* Parallel Burst Callout directly aligned above Task B */}
-                  <g transform="translate(290, 24)">
-                    <rect x="0" y="0" width="160" height="22" rx="4" fill="#F4F5F0" stroke="#E5E6DE" strokeWidth="1" />
-                    <text x="80" y="15" textAnchor="middle" className="text-[10px] font-bold fill-ink-primary">
-                      Parallel Burst (Tasks B &amp; C)
-                    </text>
-                  </g>
+                    {/* Predecessor Incoming Arrow (Blue) */}
+                    <marker
+                      id="arrow-incoming"
+                      viewBox="0 0 10 10"
+                      refX="9"
+                      refY="5"
+                      markerWidth="8"
+                      markerHeight="8"
+                      orient="auto-start-reverse"
+                    >
+                      <path d="M 0 1 L 9 5 L 0 9 z" fill="#2563EB" />
+                    </marker>
 
-                  {/* Merge Convergence Callout directly aligned above Task D */}
-                  <g transform="translate(520, 124)">
-                    <rect x="0" y="0" width="160" height="22" rx="4" fill="#F4F5F0" stroke="#E5E6DE" strokeWidth="1" />
-                    <text x="80" y="15" textAnchor="middle" className="text-[10px] font-bold fill-ink-primary">
-                      Merge Point (Needs Both B &amp; C)
-                    </text>
-                  </g>
-                </g>
+                    {/* Successor Outgoing Arrow (Emerald) */}
+                    <marker
+                      id="arrow-outgoing"
+                      viewBox="0 0 10 10"
+                      refX="9"
+                      refY="5"
+                      markerWidth="8"
+                      markerHeight="8"
+                      orient="auto-start-reverse"
+                    >
+                      <path d="M 0 1 L 9 5 L 0 9 z" fill="#059669" />
+                    </marker>
+                  </defs>
+
+                  {/* Structural Badges: Parallel Burst & Merge Convergence (Specific to UMS benchmark case) */}
+                  {activeProject.id === 'project-ums' && (
+                    <g className="font-sans select-none pointer-events-none">
+                      {/* Parallel Burst Callout directly aligned above Task B */}
+                      <g transform="translate(290, 24)">
+                        <rect x="0" y="0" width="160" height="22" rx="4" fill="#F4F5F0" stroke="#E5E6DE" strokeWidth="1" />
+                        <text x="80" y="15" textAnchor="middle" className="text-[10px] font-bold fill-ink-primary">
+                          Parallel Burst (Tasks B &amp; C)
+                        </text>
+                      </g>
+
+                      {/* Merge Convergence Callout directly aligned above Task D */}
+                      <g transform="translate(520, 124)">
+                        <rect x="0" y="0" width="160" height="22" rx="4" fill="#F4F5F0" stroke="#E5E6DE" strokeWidth="1" />
+                        <text x="80" y="15" textAnchor="middle" className="text-[10px] font-bold fill-ink-primary">
+                          Merge Point (Needs Both B &amp; C)
+                        </text>
+                      </g>
+                    </g>
+                  )}
 
                 {/* 1. EDGES */}
                 {dynamicEdges.map((edge, idx) => {
                   const pathD = getEdgePath(edge.from, edge.to);
                   const isCrit = showCriticalPath && isEdgeCritical(edge.from, edge.to);
                   const isOnHighlightedPath = isEdgeOnPath(edge.from, edge.to, highlightedPathId);
-                  const isConnectedToSelected =
-                    selectedActivityId === edge.from || selectedActivityId === edge.to;
+                  const isIncomingToSelected = selectedActivityId === edge.to;
+                  const isOutgoingFromSelected = selectedActivityId === edge.from;
                   const isConnectedToHoveredNode =
                     hoveredNodeId === edge.from || hoveredNodeId === edge.to;
                   const isThisEdgeHovered =
@@ -572,7 +631,15 @@ export const NetworkDiagramExplorer: React.FC = () => {
                     strokeColor = '#151515';
                     strokeWidth = 3;
                     markerEnd = 'url(#arrow-highlighted)';
-                  } else if (isThisEdgeHovered || isConnectedToSelected || isConnectedToHoveredNode) {
+                  } else if (isIncomingToSelected) {
+                    strokeColor = '#2563EB'; // Royal Blue for incoming predecessor edge
+                    strokeWidth = 3;
+                    markerEnd = 'url(#arrow-incoming)';
+                  } else if (isOutgoingFromSelected) {
+                    strokeColor = '#059669'; // Emerald Green for outgoing successor edge
+                    strokeWidth = 3;
+                    markerEnd = 'url(#arrow-outgoing)';
+                  } else if (isThisEdgeHovered || isConnectedToHoveredNode) {
                     strokeColor = '#151515';
                     strokeWidth = 2.5;
                     markerEnd = 'url(#arrow-highlighted)';
@@ -613,7 +680,7 @@ export const NetworkDiagramExplorer: React.FC = () => {
 
                 {/* 2. NODES */}
                 {schedule.activityList.map(act => {
-                  const layout = NODE_LAYOUTS[act.id];
+                  const layout = nodeLayouts[act.id];
                   if (!layout) return null;
 
                   const isSelected = selectedActivityId === act.id;
@@ -761,6 +828,7 @@ export const NetworkDiagramExplorer: React.FC = () => {
                   );
                 })}
               </svg>
+              )}
             </div>
           </div>
 
@@ -776,10 +844,18 @@ export const NetworkDiagramExplorer: React.FC = () => {
               <span className="font-mono text-xs"><strong className="text-ink-secondary">[LF]</strong> Late Finish</span>
             </div>
 
-            <div className="flex items-center space-x-3 text-xs">
+            <div className="flex flex-wrap items-center space-x-3 text-xs gap-y-1">
               <span className="flex items-center space-x-1.5 font-semibold text-critical">
                 <span className="w-3 h-1.5 bg-critical inline-block rounded"></span>
                 <span>Critical Path (Float = 0)</span>
+              </span>
+              <span className="flex items-center space-x-1.5 font-semibold text-[#2563EB]">
+                <span className="w-3 h-1.5 bg-[#2563EB] inline-block rounded"></span>
+                <span>Incoming Predecessor</span>
+              </span>
+              <span className="flex items-center space-x-1.5 font-semibold text-[#059669]">
+                <span className="w-3 h-1.5 bg-[#059669] inline-block rounded"></span>
+                <span>Outgoing Successor</span>
               </span>
               <span className="flex items-center space-x-1.5 font-semibold text-ink-secondary">
                 <span className="w-3 h-1.5 bg-border-strong inline-block rounded"></span>
@@ -862,7 +938,7 @@ export const NetworkDiagramExplorer: React.FC = () => {
             </div>
 
             {/* Metrics Strip */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 my-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 my-4">
               <div className="bg-white p-3 rounded-lg border border-border text-center shadow-xs">
                 <span className="text-[10px] font-bold uppercase text-ink-muted block">Duration</span>
                 <span className="font-mono text-sm font-bold text-ink-primary">{selectedAct.duration} workdays</span>
@@ -889,6 +965,44 @@ export const NetworkDiagramExplorer: React.FC = () => {
                   {selectedAct.totalFloat} day{selectedAct.totalFloat !== 1 ? 's' : ''}
                 </span>
               </div>
+              <div className="bg-white p-3 rounded-lg border border-border text-center shadow-xs">
+                <span className="text-[10px] font-bold uppercase text-ink-muted block">Free Float</span>
+                <span className={`font-mono text-sm font-bold ${selectedAct.freeFloat === 0 ? 'text-ink-secondary' : 'text-brand'}`}>
+                  {selectedAct.freeFloat} day{selectedAct.freeFloat !== 1 ? 's' : ''}
+                </span>
+              </div>
+            </div>
+
+            {/* Dynamic Float Impact & Delay Sensitivity Analysis */}
+            <div className="p-4 rounded-lg bg-white border border-border shadow-xs my-4 text-xs">
+              <div className="flex items-center space-x-2 mb-2">
+                <Sparkles className="w-4 h-4 text-brand" />
+                <span className="font-bold text-ink-primary uppercase tracking-wider text-[11px]">
+                  Float Sensitivity &amp; Downstream Impact Analysis
+                </span>
+              </div>
+              {selectedAct.isCritical ? (
+                <p className="text-critical font-medium leading-relaxed">
+                  🚨 <strong>Zero Float (Critical Path Activity):</strong> Activity {selectedAct.id} has 0 days of Total Float and 0 days of Free Float. Any delay of <em>k</em> workdays directly increases total project duration from <strong>{schedule.projectDuration}d</strong> to <strong>{schedule.projectDuration + 1}d</strong> and slips all downstream successor early start dates.
+                </p>
+              ) : (
+                <div className="space-y-1.5 text-ink-secondary leading-relaxed">
+                  <p>
+                    📊 <strong>Buffer Cushion:</strong> Total Float = <strong>{selectedAct.totalFloat} workdays</strong> &bull; Free Float = <strong>{selectedAct.freeFloat} workdays</strong>.
+                  </p>
+                  <p>
+                    &bull; <strong>Delay ≤ {selectedAct.freeFloat}d:</strong> Absorbed completely by Free Float. Will NOT delay the early start date of any immediate successor activity ({selectedAct.successors.join(', ') || 'none'}).
+                  </p>
+                  {selectedAct.totalFloat > selectedAct.freeFloat && (
+                    <p>
+                      &bull; <strong>Delay between {selectedAct.freeFloat + 1}d and {selectedAct.totalFloat}d:</strong> Will push successor early start dates, but absorbs within path float without delaying final project delivery (Day {schedule.projectDuration}).
+                    </p>
+                  )}
+                  <p>
+                    &bull; <strong>Delay &gt; {selectedAct.totalFloat}d:</strong> Breaches total float buffer! Will extend total project completion beyond Day {schedule.projectDuration} and cause Activity {selectedAct.id} to become critical.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Predecessors & Successors Inspection Grid */}

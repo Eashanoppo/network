@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useSchedule } from '../../../context/ScheduleContext';
 import { calculateSchedule } from '../../../engine/cpmEngine';
 import { simulateDurationChange } from '../../../engine/simulationEngine';
+import { SAMPLE_PROJECT_UMS } from '../../../data/sampleProjects';
 import {
   CheckCircle2,
   XCircle,
@@ -22,13 +23,14 @@ export const PracticalProjectChallenge: React.FC = () => {
   const [stageSubmitted, setStageSubmitted] = useState<Record<number, boolean>>({});
   const [isChallengeCompleted, setIsChallengeCompleted] = useState<boolean>(false);
 
-  // Live dynamic scheduling calculations for verification
-  const currentDuration = schedule.projectDuration;
-  const criticalPathStr = schedule.criticalPaths[0]?.activityIds.join(' → ') || 'A → B → D → E → F';
-  const floatC = schedule.activities['C']?.totalFloat ?? 1;
+  // Canonical benchmark calculations for the classroom challenge
+  const umsSchedule = calculateSchedule(SAMPLE_PROJECT_UMS.activities);
+  const currentDuration = umsSchedule.projectDuration;
+  const criticalPathStr = umsSchedule.criticalPaths[0]?.activityIds.join(' → ') || 'A → B → D → E → F';
+  const floatC = umsSchedule.activities['C']?.totalFloat ?? 1;
 
   // Live simulation for stage 7
-  const simC5 = simulateDurationChange(activities, 'C', 5);
+  const simC5 = simulateDurationChange(SAMPLE_PROJECT_UMS.activities, 'C', 5);
   const simC5Duration = simC5.schedule.projectDuration;
 
   // Stages configuration with live verification

@@ -346,7 +346,7 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
     id: 6,
     category: 'CPM',
     memberTag: 'Member 4 — Critical Path Method',
-    question: 'Activity D has two immediate predecessors: B (Early Finish = Day 7) and C (Early Finish = Day 6). Using inclusive workday numbering, what is the Earliest Start (ES) of Activity D?',
+    question: '[University Management System Baseline] Activity D has two immediate predecessors: B (Early Finish = Day 7) and C (Early Finish = Day 6). Using inclusive workday numbering, what is the Earliest Start (ES) of Activity D?',
     options: [
       {
         id: 'a',
@@ -379,7 +379,7 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
     id: 7,
     category: 'Slack',
     memberTag: 'Member 4 — Critical Path Method',
-    question: 'In our baseline schedule, Activity C (Database Design) has ES = 4, EF = 6, LS = 5, LF = 7. What is its Total Float (Slack)?',
+    question: '[University Management System Baseline] In our baseline schedule, Activity C (Database Design) has ES = 4, EF = 6, LS = 5, LF = 7. What is its Total Float (Slack)?',
     options: [
       {
         id: 'a',
@@ -412,7 +412,7 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
     id: 8,
     category: 'Simulation',
     memberTag: 'Member 4 & 5 — Delay Impact',
-    question: 'In our University Management System, what happens if Activity C (Database Design) duration increases from 3 to 4 days?',
+    question: '[University Management System Baseline] In our 18-workday baseline project, what happens if Activity C (Database Design) duration increases from 3 to 4 days?',
     options: [
       {
         id: 'a',
@@ -532,7 +532,7 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
     id: 12,
     category: 'Critical Path Identification',
     memberTag: 'Member 4 — Critical Path Method',
-    question: 'Given our University Management System with Path 1 (A-B-D-E-F = 18 days) and Path 2 (A-C-D-E-F = 17 days), which path is the Critical Path and why?',
+    question: '[University Management System Baseline] Given our project baseline with Path 1 (A-B-D-E-F = 18 days) and Path 2 (A-C-D-E-F = 17 days), which path is the Critical Path and why?',
     options: [
       {
         id: 'a',
@@ -560,6 +560,72 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
       },
     ],
     academicNote: 'The critical path method evaluates every unbroken route through the network from start to finish.',
+  },
+  {
+    id: 13,
+    category: 'Relationships',
+    memberTag: 'Member 2 — Dependencies',
+    question: 'Activity P (System Blueprint) and Activity Q (Code Prototype) have a Start-to-Start (SS) dependency with a positive lag of 2 days. If Activity P starts on Day 5, what is the earliest day that Activity Q can start?',
+    options: [
+      {
+        id: 'a',
+        text: 'Day 5',
+        isCorrect: false,
+        explanation: 'Day 5 ignores the required 2-day start lag.',
+      },
+      {
+        id: 'b',
+        text: 'Day 7',
+        isCorrect: true,
+        explanation: 'Correct! Under SS with lag, ES_succ ≥ ES_pred + lag. Here, ES_Q ≥ 5 + 2 = Day 7. Activity Q can start on Day 7.',
+      },
+      {
+        id: 'c',
+        text: 'Day 9',
+        isCorrect: false,
+        explanation: 'Day 9 would apply if the lag were Finish-to-Start or if duration of P were added.',
+      },
+      {
+        id: 'd',
+        text: 'Day 3',
+        isCorrect: false,
+        explanation: 'Day 3 would imply negative lag (lead), not positive lag.',
+      },
+    ],
+    academicNote: 'Start-to-Start relationships allow concurrent execution once the predecessor has achieved an initial progress buffer.',
+  },
+  {
+    id: 14,
+    category: 'Simulation',
+    memberTag: 'Member 4 & 5 — Delay Impact',
+    question: 'When compressing (crashing) a project schedule, why does reducing the duration of a critical activity sometimes fail to shorten the overall project duration?',
+    options: [
+      {
+        id: 'a',
+        text: 'Because another parallel path becomes critical with the same or longer duration, limiting further savings.',
+        isCorrect: true,
+        explanation: 'Correct! Once crashing shortens the primary critical path down to the duration of a parallel path, both paths become critical. Shortening only one path further yields zero additional project acceleration unless the parallel path is also crashed!',
+      },
+      {
+        id: 'b',
+        text: 'Because crashing automatically converts all dependencies into Start-to-Finish.',
+        isCorrect: false,
+        explanation: 'Crashing reduces task duration (typically by adding resources or overtime); it does not change dependency relationship types.',
+      },
+      {
+        id: 'c',
+        text: 'Because Total Float cannot be reduced below zero.',
+        isCorrect: false,
+        explanation: 'Crashing critical tasks shortens the path; it is bounded by concurrent parallel paths.',
+      },
+      {
+        id: 'd',
+        text: 'Because PERT variance cancels out CPM duration reductions.',
+        isCorrect: false,
+        explanation: 'PERT variance is a risk estimation metric, not a constraint on deterministic schedule crashing.',
+      },
+    ],
+    academicNote: 'Crashing requires identifying all concurrent critical paths that emerge as duration is reduced.',
   },
 ];
 
